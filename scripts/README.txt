@@ -13,4 +13,4 @@ To compute splicing order from chromatin-associated cDNA-PCR nanopore sequencing
 1) get_splice_status_introns_cDNA_PCR_nanopore_seq.sh, which calls the script get_splice_status_per_intron.PCR.py
 2) get_splicing_paths_cDNA-PCR.sh, which calls the scripts get_splicing_paths.cDNA-PCR.no_SE.py and get_splicing_paths.cDNA-PCR.with_SE.py
 
-To reproduce the analyses and plots presented in the figures, use the scripts that start with the corresponding Figure names. These scripts use as input the files generated in the scripts above. For some figures, a Python and an R script were used to generate different parts of the figures.
+To reproduce the analyses and plots presented in the figures, use the Jupyter notebooks and R markdown files that start with the corresponding Figure names. For some figures, a Jupyter notebook and an R markdown file were used to generate different parts of the figures.
