@@ -1,0 +1,1240 @@
+---
+title: "Fig5_and_S7-8_splicing_order_paper"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+knitr::opts_chunk$set(message = FALSE,        # Hide messages/warnings/errors from loading packages
+                      warning = FALSE,
+                      error = FALSE,
+                      cache = TRUE,
+                      fig.keep = TRUE,
+                      dev="pdf",
+                      fig.path = "figures/")           # By default, cache results to avoid re-running
+                                              # super long things every time you knit
+                      
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+#library(ggmin)
+library(dplyr)
+library(tidyr)
+library(gplots)
+library(RColorBrewer)
+library(ggpubr)
+library(mosaic)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+getPalette <- colorRampPalette(brewer.pal(9, "Blues"))
+cbPalette_K562 <- c(getPalette(6)[3:6], "#D55E00")
+
+getPalette1 <- colorRampPalette(brewer.pal(8, "Dark2"))
+getPalette2 <- colorRampPalette(brewer.pal(8, "Set2"))
+cbPalette_long <- c(getPalette1(8), getPalette2(8))
+
+cbPalette_HeLa <- c("#999999", cbPalette_long[1],cbPalette_long[3])
+cbPalette_HeLa_long <- c("#999999","#999999", cbPalette_long[1],cbPalette_long[1],cbPalette_long[3],cbPalette_long[3])
+
+```
+
+
+## qRT-PCR results
+
+```{r}
+
+results_df <- read.table("/path/to/qRT-PCR_results_all_U2_KD.txt", sep="\t", header=T)
+
+ctrl_df <- filter(results_df, Sample_name == "ctrl_kd") %>% dplyr::select(-Sample_name)
+
+results_df <- inner_join(results_df, ctrl_df, by=c("Date","Gene","Sample_use")) %>%
+  mutate(percent_kd = RQ.x/RQ.y * 100) %>% filter(Sample_name != "ctrl_kd")
+
+avg_df <- results_df %>% group_by(Sample_name, Gene) %>% summarise(avg_diff = mean(percent_kd))
+
+
+```
+
+```{r}
+
+avg_df_U2 <- avg_df %>% filter(Sample_name == "U2_kd" & Gene == "U2")
+results_df_U2 <- results_df %>% filter(Sample_name == "U2_kd" & Gene == "U2")
+
+avg_df_U2 %>%
+  ggplot(aes(x=Gene, y=avg_diff, fill=Sample_name)) + geom_bar(stat="identity", position="dodge") + theme_bw() +
+  scale_fill_manual(values=cbPalette_HeLa[2:3]) + 
+  geom_point(data=results_df_U2, aes(x=Gene, y=percent_kd, group=Sample_name), position = position_dodge(width = 0.9), size=1, show.legend=FALSE) + xlab("snRNA measured") + ylab("snRNA levels relative to control") + ggtitle("qRT-PCR") + ylim(0,100)
+
+ggsave("/path/to/plots/Fig5_qRT_PCR_U2_only.pdf",
+       width = 2.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+## Splicing index from short-read RNA-seq
+
+```{r}
+
+# Load intron annotations
+intron_df <- read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+
+# Load gene_name annotations
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name", "gene_id")
+
+# Add gene name to introns
+intron_df <- intron_df %>% separate(gene, c("gene_id", "id"), sep="\\.", remove=F) %>% inner_join(gene_names_df, by="gene_id") %>%
+  unite(coord, c("chrom","start","end","strand"), remove=F)
+
+```
+
+
+```{r}
+
+#RI/Splicing index
+# Read splicing index file that was calculated with the script from 21-08-10
+SI_df <- read.table("/path/to/splicing_index_all_samples_log2FC_with_bins.txt", sep="\t", header=T)
+SI_df_ctrl_U2 <- SI_df %>% filter(comparison == "ctrl_U2")
+
+# Read output from rmats-stat that was used to output p-values for statistical difference between intron/exon junction reads (RI)
+U2_RI <- read.table("/path/to/rMATS_stat_RI_Result_FDR_U2_vs_ctrl.txt", sep="\t", header=T)
+
+intron_df_gene_names = intron_df %>% dplyr::select(coord, gene_name) %>% distinct()
+
+# Reorganize dataframe and retrieve splicing index
+U2_RI_bis <- U2_RI %>% separate(ID, c("NM","id", "chrom","start","end","strand"), sep="_", extra="drop") %>% 
+  unite(coord, c("chrom","start","end","strand"), sep="_", remove=F) %>%
+  inner_join(intron_df_gene_names, by="coord") %>% mutate(start = as.numeric(start), end = as.numeric(end)) %>%
+  inner_join(SI_df_ctrl_U2, by=c("gene_name", "chrom"="chr", "start", "end", "strand"))
+
+
+```
+
+
+
+```{r}
+
+# Get average splicing indices per group (previously calculated)
+RI_df_bis <- read.table("/path/to/splicing_index_all_samples_average_per_group.txt", sep="\t", header=T)
+
+RI_df_bis$chr <- paste("chr",RI_df_bis$chr,sep="")
+
+# Merge with the RI stats dataframe to define which introns are retained/stable
+SI_ctrl_vs_U2 <- U2_RI_bis %>% mutate(chrom = paste("chr",chrom, sep="")) %>%
+  mutate(category = derivedFactor(
+  "sensitive" = FDR<0.05 & log2FC < -1,
+  "stable" = FDR>=0.05 | log2FC >= -1,
+   .method ="first",
+  .default = "other"
+  )) %>% inner_join(RI_df_bis, by=c("chrom"="chr","start","end","strand"))
+
+
+SI_ctrl_vs_U2$category <- factor(SI_ctrl_vs_U2$category, levels=c("stable","sensitive"))
+
+```
+
+
+```{r}
+
+SI_ctrl_vs_U2 %>% dplyr::select(chrom, start, end, strand, category, condition, avg_group) %>% distinct() %>%
+  ggplot(aes(x=condition, y=avg_group, fill=category)) + geom_boxplot(outlier.size=0.2) + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=c(cbPalette_long[8],cbPalette_long[6]))
+
+ggsave("/path/to/plots/Fig5_SI_ctrl_vs_U2_avg.pdf",
+       width = 3.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+# stats
+
+SI_ctrl_vs_U2_bis <- SI_ctrl_vs_U2 %>% dplyr::select(chrom, start, end, strand, category, condition, avg_group) %>% distinct() %>%
+  filter(condition != "U6")
+
+stable_ctrl <- SI_ctrl_vs_U2_bis %>% filter(category == "stable" & condition == "ctrl")
+stable_U2 <- SI_ctrl_vs_U2_bis %>% filter(category == "stable" & condition == "U2")
+sensitive_ctrl <- SI_ctrl_vs_U2_bis %>% filter(category == "sensitive" & condition == "ctrl")
+sensitive_U2 <- SI_ctrl_vs_U2_bis %>% filter(category == "sensitive" & condition == "U2")
+
+
+print(paste("ctrl", wilcox.test(stable_ctrl$avg_group, sensitive_ctrl$avg_group)[[3]], sep=": "))
+print(paste("U2", wilcox.test(stable_U2$avg_group, sensitive_U2$avg_group)[[3]], sep=": "))
+
+```
+
+
+
+
+```{r}
+
+# Repeat for individual samples
+
+fileDir <- "/path/to/"
+
+info.samples <- read.table(paste(fileDir, "info_samples.txt", sep=""), sep="\t", header=T)
+
+sampleNames <- info.samples$sample_name
+nicknames <- info.samples$nickname
+
+# Merge the splicing index from all the samples
+SI_df <- do.call(rbind, lapply(sampleNames, function(x) {
+  myDF = paste(fileDir, paste("from_O2/splicingIndex/", paste(x, ".splicingIndex.txt", sep=""), sep=""), sep="")
+  df = read.table(myDF, header=T, sep="\t") %>% mutate(sample_name = paste(x))
+}))
+
+
+```
+
+
+```{r}
+
+# Calculate splicing index
+
+SI_df_bis <- SI_df %>%
+  mutate(total_count = X5SS_count + X3SS_count + splice_count) %>% filter(total_count > 20) %>%
+  separate(gene, c("gene_id", "id"), sep="\\.", remove=F) %>% inner_join(gene_names_df, by="gene_id") %>% 
+  mutate(SI = (2*splice_count) / (X5SS_count + X3SS_count + 1)) %>%
+  separate(sample_name, c("HeLa", "condition"), extra="drop", remove=F) %>% dplyr::select(-id, -HeLa, -gene_id, -gene, -intron) %>%
+  distinct()
+
+```
+
+```{r}
+
+# Define stable and sensitive introns
+
+SI_df_bis_all <- U2_RI_bis %>% 
+  mutate(category = derivedFactor(
+  "sensitive" = FDR<0.05 & log2FC < -1,
+  "stable" = FDR>=0.05 | log2FC >= -1,
+   .method ="first",
+  .default = "other"
+  )) %>% inner_join(SI_df_bis, by=c("chrom"="chr","start","end","strand"))
+
+
+SI_df_bis_all$category <- factor(SI_df_bis_all$category, levels=c("stable","sensitive"))
+
+```
+
+
+```{r}
+
+SI_df_bis_all %>% dplyr::select(chrom, start, end, strand, category, sample_name, SI) %>% distinct() %>%
+  ggplot(aes(x=sample_name, y=SI, fill=category)) + geom_boxplot(outlier.size=0.2) + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=c(cbPalette_long[8],cbPalette_long[6]))
+
+ggsave("/path/to/plots/FigS7_SI_control_vs_U2.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+print(nrow(SI_df_bis_all %>% dplyr::select(chrom, start, end, strand, category) %>% distinct() %>% filter(category == "stable")))
+print(nrow(SI_df_bis_all %>% dplyr::select(chrom, start, end, strand, category) %>% distinct() %>% filter(category == "sensitive")))
+
+
+
+```
+
+
+
+## Traveling ratio
+
+### Process human counts for promoter region and elongation region
+
+```{r}
+# Read file containing metadata on samples
+fileDir <- "/path/to/"
+info.samples <- read.table(paste(fileDir, "info_samples.txt", sep=""), sep="\t", header=T)
+
+```
+
+
+```{r}
+
+sampleNames <- info.samples$sample_name
+nicknames <- info.samples$nickname
+
+# Merge the counts from all the samples for the promoter region
+counts_PR <- do.call(cbind, lapply(sampleNames, function(x) {
+  myDF = paste(fileDir, paste("from_O2/traveling_ratio/counts_PR/", paste(x, "_noRTbias_noPCRdup_noSI_uniq.txt", sep=""), sep=""), sep="")
+  df = read.table(myDF, header=T, row.names=1, sep="\t")
+  df <- df %>% dplyr::select(-Chr,-Start,-End,-Strand,-Length)
+}))
+
+# Add column names
+colnames(counts_PR) <- nicknames
+
+# Add gene_id as a column and re-organize the dataframe
+counts_PR_bis <- counts_PR %>% mutate(gene_id = rownames(counts_PR)) %>% gather(sample_name, count_PR, c(1:6))
+
+# Merge the counts from all the samples for the elongating region
+counts_ER <- do.call(cbind, lapply(sampleNames, function(x) {
+  myDF = paste(fileDir, paste("from_O2/traveling_ratio/counts_ER/", paste(x, "_noRTbias_noPCRdup_noSI_uniq.txt", sep=""), sep=""), sep="")
+  df = read.table(myDF, header=T, row.names=1, sep="\t")
+  df <- df %>% dplyr::select(-Chr,-Start,-End,-Strand)
+}))
+
+# Keep only one Length column
+counts_ER <- counts_ER[,c(1,2,4,6,8,10,12)]
+
+# Add column names
+colnames(counts_ER) <- c("Length", nicknames)
+
+# Add gene_id as a column and re-organize the dataframe
+counts_ER_bis <- counts_ER %>% mutate(gene_id = rownames(counts_ER)) %>% gather(sample_name, count_ER, c(2:7))
+
+
+# Merge the two together
+TR_df <- inner_join(counts_PR_bis, counts_ER_bis, by=c("gene_id", "sample_name"))
+
+# Normalize each region to the length (basically RPKM but the "per million reads" gets cancelled out in the ratio between count_ER and count_PR)
+TR_df <- TR_df %>% mutate(norm_ER = count_ER/(Length/1000)) %>% mutate(norm_PR = count_PR/(330/1000))
+
+# Filter out rows that have 0 counts for one or the other to avoid problems with ratios
+TR_df_filt <- TR_df %>% filter(count_PR > 0 & count_ER > 0)
+
+# Calculate the traveling ratio
+TR_df_filt <- TR_df_filt %>% mutate(TR = norm_PR / norm_ER)
+
+
+```
+
+
+
+
+```{r}
+
+TR_df_filt %>% separate(sample_name, c("condition"), extra="drop", remove=F, sep="_") %>% 
+  ggplot(aes(x=sample_name, y=TR, fill=condition)) + geom_boxplot(outlier.size = 0.2) + theme_bw() + scale_fill_manual(values=cbPalette_HeLa) +
+  ylab("log10 traveling ratio") + xlab("sample") + ggtitle("Global traveling ratio") + theme(axis.text.x = element_text(angle = 90)) +
+  scale_y_continuous(trans="log10")
+
+ggsave("/path/to/plots/FigS7_traveling_ratio_U2_only.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+# Fig. S5B-C
+
+```{r}
+
+# Load datasets for distance transcribed past 3'SS
+
+KC34_splice_df = read.table('/path/to/result_files/KC34_hg38_medIntrons_discarded_splice_df.txt', sep="\t", header=T)
+KC35_splice_df = read.table('/path/to/result_files/KC35_hg38_medIntrons_discarded_splice_df.txt', sep="\t", header=T)
+KC38_splice_df = read.table('/path/to/result_files/KC38_hg38_medIntrons_discarded_splice_df.txt', sep="\t", header=T)
+KC39_splice_df = read.table('/path/to/result_files/KC39_hg38_medIntrons_discarded_splice_df.txt', sep="\t", header=T)
+
+
+KC34_splice_df$sample_name <- "ctrl_rep1"
+KC35_splice_df$sample_name <- "ctrl_rep2"
+KC38_splice_df$sample_name <- "U2_rep1"
+KC39_splice_df$sample_name <- "U2_rep2"
+
+splice_df <- rbind(KC34_splice_df, KC35_splice_df, KC38_splice_df, KC39_splice_df)
+
+
+```
+
+```{r}
+
+splice_df %>% filter(dist_from_3SS <= 3000 & dist_from_3SS > 0 & splice_status != "UNDETERMINED") %>%
+  mutate(bin = cut_width(dist_from_3SS, 150, center=75)) %>%
+  group_by(sample_name, bin, splice_status) %>% summarise(n_reads = n()) %>% mutate(freq = n_reads/sum(n_reads)*100) %>%
+  filter(splice_status == "YES") %>%
+  ggplot(aes(x=bin, y=freq, color=sample_name)) + geom_line(aes(group=sample_name)) + theme_bw() + theme(axis.text.x=element_text(angle = 90)) +
+  ylim(0,100) + scale_color_manual(values=cbPalette_HeLa_long) + geom_point()
+
+ggsave("/path/to/plots/FigS7_U2_KD_splicing_kinetics.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+# Load dataset with global splicing order between pairs
+
+order_df <- read.table("/path/to/U2_KD_global_splicing_order_nanoCOP.txt", sep="\t", header=T)
+
+
+```
+
+
+```{r}
+
+order_df_bis <- order_df %>% separate(name, c("knockdown","Rep"), sep="_")
+
+order_df_bis %>%
+  group_by(order, knockdown) %>%
+  summarise(avg_freq = mean(splicing_status), sd_freq = sd(splicing_status)) %>%
+  mutate(sd_lower = avg_freq - sd_freq) %>%
+  mutate(sd_upper = avg_freq + sd_freq) %>%
+  ggplot(aes(x=order, y=avg_freq, fill=knockdown)) + geom_bar(stat="identity", position="dodge") + theme_bw() + 
+  ylim(0,100) + scale_fill_manual(values=cbPalette_HeLa) +
+  geom_point(data=order_df_bis, aes(x=order, y=splicing_status, group=knockdown), position = position_dodge(width = 0.9), size=2)
+  #geom_errorbar(aes(x=order, ymin=sd_lower, ymax=sd_upper), position = position_dodge2(width = 0.5, padding = 0.5))
+
+ggsave("/path/to/plots/FigS7_U2_KD_global_splicing_order.pdf",
+       width = 3.5,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+## Intron retention vs. exon skipping in short-read RNA-seq
+
+```{r}
+
+# Load intron annotations
+intron_df <- read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+
+# Load gene_name annotations
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name", "gene_id")
+
+# Add gene name to introns
+intron_df <- intron_df %>% separate(gene, c("gene_id", "id"), sep="\\.", remove=F) %>% inner_join(gene_names_df, by="gene_id") %>%
+  unite(coord, c("chrom","start","end","strand"), remove=F)
+
+n_introns_per_gene <- intron_df %>% dplyr::select(gene_name, intron_total) %>% group_by(gene_name) %>% summarise(intron_total_max = max(intron_total))
+
+```
+
+
+```{r}
+
+# Change chromosome nomenclature
+intron_df$chrom <- paste("chr", intron_df$chrom, sep="")
+
+# Select the important columns from the intron_info file
+fields_intron_info <- c("chrom", "start", "end", "strand", "intron_pos","gene","gene_name")
+intron_df_nodup <- unique(intron_df[,fields_intron_info])
+
+
+```
+
+
+```{r}
+
+# rmats outputs for comparison between control and U2 KD (SE)
+ctrl_U2_SE <- read.table("/path/to/ctrl_vs_U2/SE.MATS.JC.txt", sep="\t", header=T)
+
+# Define minimum coverage threshold
+t = 20
+
+ctrl_U2_SE_sig <- unique(ctrl_U2_SE %>% filter(FDR < 0.05 & abs(IncLevelDifference) > 0.1) %>% 
+                           separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2", "IJC_gr1_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2", "SJC_gr1_s3"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2", "IJC_gr2_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2", "SJC_gr2_s3"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t & IJC_gr1_s3 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t & IJC_gr2_s3 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t & SJC_gr1_s3 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t & SJC_gr2_s3 >= t))) %>%
+                         dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd,PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference) %>%
+                       arrange(FDR))
+
+```
+
+```{r}
+
+#RI/Splicing index
+# Read splicing index file that was calculated with the script from 21-08-10
+SI_df <- read.table("/path/to/splicing_index_all_samples_log2FC_with_bins.txt", sep="\t", header=T)
+SI_df_ctrl_U2 <- SI_df %>% filter(comparison == "ctrl_U2")
+
+# Read output from rmats-stat that was used to output p-values for statistical difference between intron/exon junction reads (RI)
+U2_RI <- read.table("/path/to/rMATS_stat_RI_Result_FDR_U2_vs_ctrl.txt", sep="\t", header=T)
+
+intron_df_gene_names = intron_df %>% dplyr::select(coord, gene_name) %>% distinct()
+
+U2_RI_bis <- U2_RI %>% separate(ID, c("NM","id", "chrom","start","end","strand"), sep="_", extra="drop") %>% 
+  unite(coord, c("chrom","start","end","strand"), sep="_", remove=F) %>%
+  inner_join(intron_df_gene_names, by="coord") %>% mutate(start = as.numeric(start), end = as.numeric(end)) %>%
+  inner_join(SI_df_ctrl_U2, by=c("gene_name", "chrom"="chr", "start", "end", "strand"))
+
+ctrl_U2_RI_sig <- filter(U2_RI_bis, FDR < 0.05 & log2FC < -1) %>% dplyr::select(-NM, -id, -coord) %>% distinct()
+
+
+
+```
+
+
+```{r}
+
+# Separate genes based on inclusion level difference
+
+
+t=20
+
+SE_sensitive_genes_U2_grA <- unique(ctrl_U2_SE %>% separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2", "IJC_gr1_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2", "SJC_gr1_s3"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2", "IJC_gr2_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2", "SJC_gr2_s3"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t & IJC_gr1_s3 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t & IJC_gr2_s3 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t & SJC_gr1_s3 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t & SJC_gr2_s3 >= t))) %>%
+                                        filter(FDR < 0.05 & IncLevelDifference >= 0.25) %>%
+                                        dplyr::select(geneSymbol))
+SE_sensitive_genes_U2_grB <- unique(ctrl_U2_SE %>% separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2", "IJC_gr1_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2", "SJC_gr1_s3"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2", "IJC_gr2_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2", "SJC_gr2_s3"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t & IJC_gr1_s3 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t & IJC_gr2_s3 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t & SJC_gr1_s3 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t & SJC_gr2_s3 >= t))) %>%
+                                        filter(FDR < 0.05 & IncLevelDifference >= 0.1 & IncLevelDifference < 0.25) %>%
+                                        dplyr::select(geneSymbol))
+SE_sensitive_genes_U2_grC <- unique(ctrl_U2_SE %>% separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2", "IJC_gr1_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2", "SJC_gr1_s3"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2", "IJC_gr2_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2", "SJC_gr2_s3"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t & IJC_gr1_s3 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t & IJC_gr2_s3 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t & SJC_gr1_s3 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t & SJC_gr2_s3 >= t))) %>%
+                                        filter(FDR < 0.05 & IncLevelDifference > 0.01 & IncLevelDifference < 0.1) %>%
+                                        dplyr::select(geneSymbol))
+
+RI_sensitive_genes_U2 <- unique(ctrl_U2_RI_sig %>% filter(FDR < 0.05 & log2FC < -1) %>% dplyr::select(gene_name))
+
+# Merge SE and RI outputs
+RI_SE_U2_df <- U2_RI_bis %>% dplyr::select(gene_name) %>% distinct() %>%
+  mutate(RI_category = ifelse(gene_name %in% RI_sensitive_genes_U2$gene_name, "sensitive", "stable")) %>%
+  mutate(SE_category = case_when(gene_name %in% SE_sensitive_genes_U2_grA$geneSymbol ~ "dPSI > 0.25",
+                                 gene_name %in% SE_sensitive_genes_U2_grB$geneSymbol ~ "dPSI 0.1-0.25",
+                                    gene_name %in% SE_sensitive_genes_U2_grC$geneSymbol ~ "dPSI 0.01-0.1",
+                                    TRUE ~ "no SE"))
+  
+
+RI_SE_U2_df$SE_category <- factor(RI_SE_U2_df$SE_category, levels=c("dPSI > 0.25", "dPSI 0.1-0.25", "dPSI 0.01-0.1", "no SE"))
+
+RI_SE_U2_df %>% group_by(RI_category, SE_category) %>% summarise(n_genes = n()) %>%
+  ggplot(aes(x=SE_category, y=n_genes, fill=RI_category)) + geom_bar(stat="identity", position="fill") + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=0.3)) +
+  scale_fill_manual(values=c(cbPalette_long[2],"#999999")) + ylab("proportion of genes") + xlab("SE category") + ggtitle("U2 KD")
+
+
+ggsave("/path/to/plots/FigS7_SE_RI_short-read.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+
+
+```
+
+
+
+## HeLa splicing order for genes affected in U2 KD
+
+```{r}
+
+# Get splicing orders
+
+path_df_nodup <- read.table("/path/to/HeLa_splicing_order_paths_reps_merged_nodup.txt", sep="\t", header=T)
+
+# Get intron annotations
+
+hg38_intron_info = read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+hg38_intron_info$chrom <- paste("chr", hg38_intron_info$chrom, sep="")
+
+hg38_intron_info_var = hg38_intron_info %>% dplyr::select(c('gene','intron_pos','chrom','start','end','strand'))
+hg38_intron_info_var$intron_pos <- as.character(hg38_intron_info_var$intron_pos)
+
+
+```
+
+```{r}
+
+# Reformat SI dataframe
+
+SI_ctrl_vs_U2_coord <- SI_ctrl_vs_U2 %>%
+  unite(gene, c("NM","id"), sep="_") %>% dplyr::select(gene, chrom, start, end, strand, category) %>%
+  distinct()
+
+```
+
+
+
+```{r}
+
+# Merge splicing order data from top splicing order per intron group with splicing indices from short-read
+path_df_top <- path_df_nodup %>% filter(rank == 1) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+path_df_top_U2 <- path_df_top %>%
+  inner_join(SI_ctrl_vs_U2_coord, by=c("chrom","start","end","strand","gene"))
+
+# Identify intron groups that contain a combination of stable and sensitive introns
+sensitive_stable_groups <- path_df_top_U2 %>% group_by(gene_name, gene, analyzed_introns, category) %>% summarise(n=n()) %>% spread(category, n) %>% drop_na()
+
+
+path_df_top_U2 %>% inner_join(sensitive_stable_groups, by=c("gene_name","gene","analyzed_introns")) %>%
+  dplyr::select(category, order, chrom, start, end, strand, gene_name, sensitive) %>% distinct() %>% 
+  group_by(category, order, sensitive) %>% summarise(n=n()) %>%
+  ggplot(aes(x=order, y=n, fill=category)) + geom_bar(stat="identity", position="fill") + theme_bw() + 
+  scale_fill_manual(values=c(cbPalette_long[8],cbPalette_long[6])) + facet_wrap(~sensitive)
+
+ggsave("/path/to/plots/Fig5_HeLa_splicing_order_vs_U2_status_barplot.pdf",
+       width = 4.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+# stats
+
+path_df_top_U2_spr <- path_df_top_U2 %>% inner_join(sensitive_stable_groups, by=c("gene_name","gene","analyzed_introns")) %>%
+  dplyr::select(sensitive, category, order, chrom, start, end, strand) %>% distinct() %>%
+  group_by(category, order, sensitive) %>% summarise(n=n()) %>% dplyr::rename(n_sensitive_introns = sensitive) %>% spread(category, n)
+
+path_df_top_U2_spr_1sens <- path_df_top_U2_spr %>% filter(n_sensitive_introns == 1)
+path_df_top_U2_spr_2sens <- path_df_top_U2_spr %>% filter(n_sensitive_introns == 2)
+
+print(paste("spliced 1st vs. spliced 2nd, 1 sensitive intron", fisher.test(path_df_top_U2_spr_1sens[1:2,c("stable","sensitive")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd, 1 sensitive intron", fisher.test(path_df_top_U2_spr_1sens[c(1,3),c("stable","sensitive")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd, 1 sensitive intron", fisher.test(path_df_top_U2_spr_1sens[2:3,c("stable","sensitive")])[[1]], sep=": "))
+
+print(paste("spliced 1st vs. spliced 2nd, 2 sensitive introns", fisher.test(path_df_top_U2_spr_2sens[1:2,c("stable","sensitive")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd, 2 sensitive introns", fisher.test(path_df_top_U2_spr_2sens[c(1,3),c("stable","sensitive")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd, 2 sensitive introns", fisher.test(path_df_top_U2_spr_2sens[2:3,c("stable","sensitive")])[[1]], sep=": "))
+
+```
+
+```{r}
+
+# Analyze summed splicing order score across all orders (instead of only top splicing order)
+
+path_df_nodup %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos")) %>%
+  inner_join(SI_ctrl_vs_U2_coord, by=c("chrom","start","end","strand","gene")) %>%
+  inner_join(sensitive_stable_groups, by=c("gene_name","gene","analyzed_introns")) %>%
+  group_by(gene, gene_name, analyzed_introns, order, category, sensitive) %>% summarise(score = sum(full_path_score)) %>%
+  ggplot(aes(x=order, y=score, fill=category)) + geom_boxplot(outlier.size=0.5) + theme_bw() + facet_wrap(~sensitive) +
+  scale_fill_manual(values=c(cbPalette_long[8],cbPalette_long[6]))
+
+ggsave("/path/to/plots/FigS7_HeLa_splicing_order_vs_U2_status_boxplot.pdf",
+       width = 4.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+
+
+```{r}
+
+# stats
+
+path_df_top_U2_scores <- path_df_nodup %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos")) %>%
+  inner_join(SI_ctrl_vs_U2_coord, by=c("chrom","start","end","strand","gene")) %>%
+  inner_join(sensitive_stable_groups, by=c("gene_name","gene","analyzed_introns")) %>%
+  group_by(gene, gene_name, analyzed_introns, order, category, sensitive) %>% summarise(score = sum(full_path_score)) %>%
+  dplyr::rename(n_sensitive_introns = sensitive) %>% spread(category, score) %>% 
+  mutate(stable = replace_na(stable, 0), sensitive = replace_na(sensitive, 0))
+
+path_df_top_U2_scores_1sens_intron1 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 1 & order == "intron1")
+path_df_top_U2_scores_1sens_intron2 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 1 & order == "intron2")
+path_df_top_U2_scores_1sens_intron3 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 1 & order == "intron3")
+
+path_df_top_U2_scores_2sens_intron1 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 2 & order == "intron1")
+path_df_top_U2_scores_2sens_intron2 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 2 & order == "intron2")
+path_df_top_U2_scores_2sens_intron3 <- path_df_top_U2_scores %>% filter(n_sensitive_introns == 2 & order == "intron3")
+
+print(paste("1 sensitive intron, spliced 1st", wilcox.test(path_df_top_U2_scores_1sens_intron1$stable, path_df_top_U2_scores_1sens_intron1$sensitive)[[3]], sep=": "))
+print(paste("1 sensitive intron, spliced 2nd", wilcox.test(path_df_top_U2_scores_1sens_intron2$stable, path_df_top_U2_scores_1sens_intron2$sensitive)[[3]], sep=": "))
+print(paste("1 sensitive intron, spliced 3rd", wilcox.test(path_df_top_U2_scores_1sens_intron3$stable, path_df_top_U2_scores_1sens_intron3$sensitive)[[3]], sep=": "))
+
+print(paste("2 sensitive introns, spliced 1st", wilcox.test(path_df_top_U2_scores_2sens_intron1$stable, path_df_top_U2_scores_2sens_intron1$sensitive)[[3]], sep=": "))
+print(paste("2 sensitive introns, spliced 2nd", wilcox.test(path_df_top_U2_scores_2sens_intron2$stable, path_df_top_U2_scores_2sens_intron2$sensitive)[[3]], sep=": "))
+print(paste("2 sensitive introns, spliced 3rd", wilcox.test(path_df_top_U2_scores_2sens_intron3$stable, path_df_top_U2_scores_2sens_intron3$sensitive)[[3]], sep=": "))
+
+```
+
+
+# Evenness for groups of sensitive/stable introns
+
+```{r}
+
+# Load evenness per intron groups
+SDI_df <- read.table("/path/to/SDI_df_HeLa_3introns.txt", sep="\t", header=T)
+
+# Define intron categories
+path_df_top_U2_SDI <- path_df_top_U2 %>% group_by(gene_name, gene, analyzed_introns, category) %>% summarise(n=n()) %>% spread(category, n) %>%
+  mutate(group_type = case_when(sensitive == 3 ~ "all_sensitive",
+                                stable == 3 ~ "all_stable",
+                                !is.na(sensitive) & !is.na(stable) ~ "mixed",
+                                TRUE ~ "other")) %>% filter(group_type != "other") %>%
+  inner_join(SDI_df, by=c("gene","gene_name","analyzed_introns"))
+
+path_df_top_U2_SDI$group_type <- factor(path_df_top_U2_SDI$group_type, levels=c("all_stable","mixed","all_sensitive"))
+
+path_df_top_U2_SDI %>% 
+  ggplot(aes(x=group_type, y=Evenness, fill=group_type)) + geom_boxplot() + theme_bw() + scale_fill_manual(values=c(cbPalette_long[8],cbPalette_long[2],cbPalette_long[6]))
+
+ggsave("/path/to/plots/Fig5_HeLa_splicing_order_vs_U2_status_Evenness.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# stats
+
+path_df_top_U2_SDI_stable <- path_df_top_U2_SDI %>% filter(group_type == "all_stable")
+path_df_top_U2_SDI_sensitive <- path_df_top_U2_SDI %>% filter(group_type == "all_sensitive")
+path_df_top_U2_SDI_mixed <- path_df_top_U2_SDI %>% filter(group_type == "mixed")
+
+
+print(paste("all stable vs. all sensitive", wilcox.test(path_df_top_U2_SDI_stable$Evenness, path_df_top_U2_SDI_sensitive$Evenness)[[3]], sep=": "))
+print(paste("all stable vs. mixed", wilcox.test(path_df_top_U2_SDI_stable$Evenness, path_df_top_U2_SDI_mixed$Evenness)[[3]], sep=": "))
+print(paste("mixed vs. all sensitive", wilcox.test(path_df_top_U2_SDI_mixed$Evenness, path_df_top_U2_SDI_sensitive$Evenness)[[3]], sep=": "))
+
+
+```
+
+
+```{r}
+
+# Evenness vs. read coverage
+
+# Load raw splicing order data
+path_df_tmp <- read.table("/path/to/HeLa_chromatin_splicing_paths_non_consecutive_introns.RefSeq.min10.3_introns.reps_merged.txt", sep="\t", header=T)
+
+path_df_tmp %>% dplyr::select(gene, gene_name, analyzed_introns, pattern2, count_pattern2, level) %>% distinct() %>% filter(grepl("YES",pattern2) & grepl("NO",pattern2)) %>%
+  group_by(gene, gene_name, analyzed_introns, level) %>% summarise(count = sum(count_pattern2)) %>%
+  inner_join(path_df_top_U2_SDI, by=c("gene","gene_name","analyzed_introns")) %>%
+  ggplot(aes(x=count, color=group_type, linetype=factor(level))) + stat_ecdf() + theme_bw() + scale_x_continuous(trans="log10") +
+  scale_color_manual(values=c(cbPalette_long[8],cbPalette_long[2],cbPalette_long[6]))
+
+ggsave("/path/to/plots/FigS7_HeLa_splicing_order_vs_U2_status_Evenness_coverage_CDF.pdf",
+       width = 4.5,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+
+
+# SE/RI co-occurrence in total direct RNA sequencing
+
+```{r}
+
+# Get results from binomial analysis of SE/RI co-occurrence
+binom_df <- read.table("/path/to/DirectRNA_SE_RI_analysis_revisited.txt", sep="\t", header=T)
+
+```
+
+
+```{r}
+
+
+cbPalette_HeLa <- c("#999999", "#009E73","#9966CC")
+
+# Add categories
+binom_df_counts <- binom_df %>% filter(category_U2 != "non-sig") %>%
+  mutate(new_category = case_when(NO_INCL_U2+count_U2 > YES_EXCL_U2+count_U2 ~ "RI|SE",
+                                  NO_INCL_U2+count_U2 < YES_EXCL_U2+count_U2 ~ "SE|RI",
+                                  TRUE ~ "other")) %>% filter(new_category != "other") %>%
+  dplyr::rename(NO_EXCL_U2 = count_U2, NO_EXCL_ctrl = count_ctrl) %>%
+  dplyr::select(gene_name, pair_id, NO_EXCL_U2, NO_INCL_U2, YES_EXCL_U2, NO_EXCL_ctrl, NO_INCL_ctrl, YES_EXCL_ctrl, new_category) %>%
+  gather(status, count, c("NO_EXCL_U2", "NO_INCL_U2", "YES_EXCL_U2", "NO_EXCL_ctrl", "NO_INCL_ctrl", "YES_EXCL_ctrl")) %>%
+  separate(status, c("intron","exon","condition"), sep="_") %>% unite(status, c("intron","exon"), sep="_")
+
+# Plot number of reads per event based on category
+binom_df_counts %>%
+  ggplot(aes(x=status, y=count, fill=condition)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + facet_wrap(~new_category) + scale_fill_manual(values=cbPalette_HeLa) + 
+  scale_y_continuous(trans="log10")
+
+ggsave("/path/to/plots/Fig5_SE_RI_read_counts_per_condition_boxplot.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+# stats
+
+binom_df_counts_NO_EXCL_SE_RI <- binom_df_counts %>% spread(condition, count) %>% filter(status == "NO_EXCL" & new_category == "SE|RI")
+binom_df_counts_NO_INCL_SE_RI <- binom_df_counts %>% spread(condition, count) %>% filter(status == "NO_INCL" & new_category == "SE|RI")
+binom_df_counts_YES_EXCL_SE_RI <- binom_df_counts %>% spread(condition, count) %>% filter(status == "YES_EXCL" & new_category == "SE|RI")
+binom_df_counts_NO_EXCL_RI_SE <- binom_df_counts %>% spread(condition, count) %>% filter(status == "NO_EXCL" & new_category == "RI|SE")
+binom_df_counts_NO_INCL_RI_SE <- binom_df_counts %>% spread(condition, count) %>% filter(status == "NO_INCL" & new_category == "RI|SE")
+binom_df_counts_YES_EXCL_RI_SE <- binom_df_counts %>% spread(condition, count) %>% filter(status == "YES_EXCL" & new_category == "RI|SE")
+
+
+print(paste("SE|RI NO_EXCL", wilcox.test(binom_df_counts_NO_EXCL_SE_RI$ctrl, binom_df_counts_NO_EXCL_SE_RI$U2)[[3]], sep=": "))
+print(paste("SE|RI NO_INCL", wilcox.test(binom_df_counts_NO_INCL_SE_RI$ctrl, binom_df_counts_NO_INCL_SE_RI$U2)[[3]], sep=": "))
+print(paste("SE|RI YES_EXCL", wilcox.test(binom_df_counts_YES_EXCL_SE_RI$ctrl, binom_df_counts_YES_EXCL_SE_RI$U2)[[3]], sep=": "))
+
+print(paste("RI|SE NO_EXCL", wilcox.test(binom_df_counts_NO_EXCL_RI_SE$ctrl, binom_df_counts_NO_EXCL_RI_SE$U2)[[3]], sep=": "))
+print(paste("RI|SE NO_INCL", wilcox.test(binom_df_counts_NO_INCL_RI_SE$ctrl, binom_df_counts_NO_INCL_RI_SE$U2)[[3]], sep=": "))
+print(paste("RI|SE YES_EXCL", wilcox.test(binom_df_counts_YES_EXCL_RI_SE$ctrl, binom_df_counts_YES_EXCL_RI_SE$U2)[[3]], sep=": "))
+
+
+```
+
+
+
+```{r}
+
+# Plot number of genes in each category
+
+binom_df_U2 <- binom_df %>% 
+  mutate(new_category = case_when(category_U2 != "non-sig" & NO_INCL_U2+count_U2 > YES_EXCL_U2+count_U2 ~ "RI_SE",
+                                  category_U2 != "non-sig" & NO_INCL_U2+count_U2 < YES_EXCL_U2+count_U2 ~ "SE_RI",
+                                  category_U2 == "non-sig" ~ "non_sig",
+                                  TRUE ~ "non_sig")) %>%
+  group_by(gene_name, new_category) %>% summarise(n=n()) %>% spread(new_category, n) %>%
+  mutate(gene_category = case_when(!is.na(RI_SE) & !is.na(SE_RI) ~ "both",
+                                   !is.na(RI_SE) & is.na(SE_RI) ~ "RI|SE",
+                                   !is.na(SE_RI) & is.na(RI_SE) ~ "SE|RI",
+                                   !is.na(non_sig) & is.na(RI_SE) & is.na(SE_RI) ~ "non-sig",
+                                   TRUE ~ "other")) %>% 
+  group_by(gene_category) %>% summarise(n_genes=n()) %>% mutate(condition = "U2")
+
+
+binom_df_ctrl <- binom_df %>% 
+  mutate(new_category = case_when(category_ctrl != "non-sig" & NO_INCL_ctrl+count_ctrl > YES_EXCL_ctrl+count_ctrl ~ "RI_SE",
+                                  category_ctrl != "non-sig" & NO_INCL_ctrl+count_ctrl < YES_EXCL_ctrl+count_ctrl ~ "SE_RI",
+                                  category_ctrl == "non-sig" ~ "non_sig",
+                                  TRUE ~ "non_sig")) %>%
+  group_by(gene_name, new_category) %>% summarise(n=n()) %>% spread(new_category, n) %>%
+  mutate(gene_category = case_when(!is.na(RI_SE) & !is.na(SE_RI) ~ "both",
+                                   !is.na(RI_SE) & is.na(SE_RI) ~ "RI|SE",
+                                   !is.na(SE_RI) & is.na(RI_SE) ~ "SE|RI",
+                                   !is.na(non_sig) & is.na(RI_SE) & is.na(SE_RI) ~ "non-sig",
+                                   TRUE ~ "other")) %>% 
+  group_by(gene_category) %>% summarise(n_genes=n()) %>% mutate(condition = "ctrl")
+
+
+binom_df_gene_counts <- rbind(binom_df_U2, binom_df_ctrl) 
+binom_df_gene_counts$gene_category <- factor(binom_df_gene_counts$gene_category, levels=c("both","RI|SE","SE|RI","non-sig"))
+
+binom_df_gene_counts %>%
+  ggplot(aes(x=gene_category, y=n_genes, fill=condition)) + geom_bar(stat="identity", position="dodge") + theme_bw() + scale_fill_manual(values=cbPalette_HeLa)
+
+ggsave("/path/to/plots/FigS7_SE_RI_gene_counts_per_condition_barplot.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+
+# Splicing order for intron groups that involve SE and RI upon U2 KD
+
+```{r}
+
+# Load intron annotations
+intron_df <- read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+
+# Load gene_name annotations
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name", "gene_id")
+
+# Add gene name to introns
+intron_df <- intron_df %>% separate(gene, c("gene_id", "id"), sep="\\.", remove=F) %>% inner_join(gene_names_df, by="gene_id") %>%
+  unite(coord, c("chrom","start","end","strand"), remove=F)
+
+```
+
+
+
+```{r}
+
+# Get intron groups composed of one RI and the two introns flanking an SE, and the corresponding splicing orders
+U2_AS_triplets <- read.table("/path/to/PromethION_SE_RI_triplets_for_splicing_order_analyses.more_info.txt", sep="\t", header=T)
+U2_sens_paths_tmp <- read.table("/path/to/K562_chromatin_splicing_paths_U2_sensitive_introns.2mergedReps.RefSeq.max3introns.txt", sep="\t", header=T)
+
+# Reorganize splicing order dataframe
+U2_sens_paths <- U2_sens_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, n_analyzed_introns, 
+                                                     full_path, full_path_score, rank) %>% distinct() %>% arrange(gene_name, gene, analyzed_introns, rank)
+
+```
+
+
+```{r}
+
+# Get coordinates from introns in triplets and remove duplicates
+fields <- c("gene", "count","intron_pos","chrom","start","end","strand")
+
+U2_AS_triplets_bis <- U2_AS_triplets %>% gather(feature,count, c("intron","exon1","exon2")) %>% 
+  inner_join(intron_df[,fields], by=c("gene","count","strand")) %>%
+  mutate(intron_pos = as.character(intron_pos)) %>% 
+  unite(coord, c("chrom","start","end","strand"), sep="_") %>%
+  dplyr::select(-count, -triplet) %>% distinct() %>%
+  pivot_wider(id_cols = c(gene_name, pair_id, gene, intron_total, triplet2), 
+            names_from = feature, 
+            values_from = c("coord", "intron_pos")) %>%
+  distinct(across(c(coord_exon1, coord_exon2, coord_intron)), .keep_all=T) %>%
+  dplyr::select(-coord_exon1, -coord_exon2, -coord_intron) %>%
+  gather(feature, intron_pos, c("intron_pos_intron","intron_pos_exon1","intron_pos_exon2"))
+
+
+
+```
+
+```{r}
+
+# Combine top ranked splicing order with intron groups categories
+
+U2_sens_paths_bis <- U2_sens_paths %>% filter(rank == 1) %>%
+  separate(full_path, c("1","2","3"), sep="->", remove=F) %>% gather(splice_pos, intron_pos, c("1","2","3")) %>%
+  inner_join(U2_AS_triplets_bis, by=c("gene_name", "gene","intron_pos","analyzed_introns"="triplet2"))
+
+# write to file for Supplemental Table
+#write.table(U2_sens_paths_bis, "/path/to/tables/TableS9_splicing_order_HeLa_vs_SE_RI.txt", sep="\t", col.names=T, row.names=F, quote=F)
+
+```
+
+
+```{r}
+
+# Remove duplicate intron groups
+U2_AS_triplets_nodup <- U2_AS_triplets %>% distinct()
+
+```
+
+```{r}
+
+# Add categories to the binomial test dataframe and merge with intron groups for splicing order
+binom_df_triplets <- binom_df %>% filter(category_U2 != "non-sig") %>%
+  mutate(new_category = case_when(NO_INCL_U2+count_U2 > YES_EXCL_U2+count_U2 ~ "RI|SE",
+                                  NO_INCL_U2+count_U2 < YES_EXCL_U2+count_U2 ~ "SE|RI",
+                                  TRUE ~ "other")) %>% filter(new_category != "other") %>%
+  dplyr::rename(NO_EXCL_U2 = count_U2, NO_EXCL_ctrl = count_ctrl) %>%
+  inner_join(U2_AS_triplets_nodup, by=c("gene_name", "pair_id")) %>%
+  dplyr::select(gene_name, pair_id, new_category, triplet2) %>% distinct()
+
+```
+
+```{r}
+
+# Merge splicing order results and binomial test results
+
+binom_df_triplets$new_category <- factor(binom_df_triplets$new_category, levels=c("SE|RI","RI|SE","other"))
+
+U2_sens_paths_bis %>% filter(feature == "intron_pos_intron") %>% inner_join(binom_df_triplets, by=c("gene_name", "pair_id", "analyzed_introns"="triplet2")) %>%
+  group_by(gene_name, gene, new_category, intron_pos, splice_pos) %>% summarise(n=n()) %>% mutate(splice_pos = paste("spliced", splice_pos, sep="")) %>%
+  spread(splice_pos, n) %>%
+  mutate(category = case_when(!is.na(spliced1) ~ "spliced_1st",
+                              is.na(spliced1) & !is.na(spliced2) ~ "spliced_2nd",
+                              is.na(spliced1) & is.na(spliced2) ~ "spliced_3rd")) %>% 
+  group_by(new_category, category) %>% summarise(n_introns = n()) %>%
+  ggplot(aes(x=new_category, y=n_introns, fill=category)) + geom_bar(stat="identity", position="fill") + theme_bw() + scale_fill_manual(values=cbPalette_long[9:12])
+
+ggsave("/path/to/plots/Fig5_SE_RI_intron_groups_splicing_order_top_barplot.pdf",
+       width = 3.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# Get summed splicing order score for all orders instead of only the top ranked order
+
+U2_sens_paths_bis2 <- U2_sens_paths %>%
+  separate(full_path, c("1","2","3"), sep="->", remove=F) %>% gather(splice_pos, intron_pos, c("1","2","3")) %>%
+  inner_join(U2_AS_triplets_bis, by=c("gene_name", "gene","intron_pos","analyzed_introns"="triplet2"))
+
+U2_sens_paths_bis2_grp <- U2_sens_paths_bis2 %>% filter(feature == "intron_pos_intron") %>% inner_join(binom_df_triplets, by=c("gene_name", "pair_id", "analyzed_introns"="triplet2")) %>%
+  unite(id, c("gene_name","gene","analyzed_introns"), sep="__", remove=F) %>%
+  group_by(id, intron_pos, splice_pos, new_category) %>% summarise(sum_score = sum(full_path_score))
+
+
+```
+
+```{r}
+
+U2_sens_paths_bis2_grp %>%
+  ggplot(aes(x=new_category, y=sum_score, fill=splice_pos)) + geom_boxplot() + theme_bw() + scale_fill_manual(values=cbPalette_long[9:12])
+
+ggsave("/path/to/plots/FigS7_SE_RI_intron_groups_splicing_order_all_boxplot.pdf",
+       width = 3.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+
+```{r}
+
+# stats
+
+U2_sens_paths_bis2_grp_SERI_1 <- U2_sens_paths_bis2_grp %>% filter(new_category == "SE|RI" & splice_pos == 1)
+U2_sens_paths_bis2_grp_SERI_2 <- U2_sens_paths_bis2_grp %>% filter(new_category == "SE|RI" & splice_pos == 2)
+U2_sens_paths_bis2_grp_SERI_3 <- U2_sens_paths_bis2_grp %>% filter(new_category == "SE|RI" & splice_pos == 3)
+U2_sens_paths_bis2_grp_RISE_1 <- U2_sens_paths_bis2_grp %>% filter(new_category == "RI|SE" & splice_pos == 1)
+U2_sens_paths_bis2_grp_RISE_2 <- U2_sens_paths_bis2_grp %>% filter(new_category == "RI|SE" & splice_pos == 2)
+U2_sens_paths_bis2_grp_RISE_3 <- U2_sens_paths_bis2_grp %>% filter(new_category == "RI|SE" & splice_pos == 3)
+
+
+print(paste("SE|RI 1st vs. 2nd", wilcox.test(U2_sens_paths_bis2_grp_SERI_1$sum_score, U2_sens_paths_bis2_grp_SERI_2$sum_score)[[3]], sep=": "))
+print(paste("SE|RI 1st vs. 3rd", wilcox.test(U2_sens_paths_bis2_grp_SERI_1$sum_score, U2_sens_paths_bis2_grp_SERI_3$sum_score)[[3]], sep=": "))
+print(paste("SE|RI 2nd vs. 3rd", wilcox.test(U2_sens_paths_bis2_grp_SERI_2$sum_score, U2_sens_paths_bis2_grp_SERI_3$sum_score)[[3]], sep=": "))
+
+print(paste("RI|SE 1st vs. 2nd", wilcox.test(U2_sens_paths_bis2_grp_RISE_1$sum_score, U2_sens_paths_bis2_grp_RISE_2$sum_score)[[3]], sep=": "))
+print(paste("RI|SE 1st vs. 3rd", wilcox.test(U2_sens_paths_bis2_grp_RISE_1$sum_score, U2_sens_paths_bis2_grp_RISE_3$sum_score)[[3]], sep=": "))
+print(paste("RI|SE 2nd vs. 3rd", wilcox.test(U2_sens_paths_bis2_grp_RISE_2$sum_score, U2_sens_paths_bis2_grp_RISE_3$sum_score)[[3]], sep=": "))
+
+
+```
+
+
+
+# Splicing order plots for example genes
+
+```{r}
+
+# RAN
+
+U2_sens_paths_tmp %>% filter(gene == "NM_006325.4" & analyzed_introns == "1_2_3" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("RAN")
+
+ggsave("/path/to/plots/Fig5_RAN_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# IFRD2
+
+U2_sens_paths_tmp %>% filter(gene == "NM_006764.4" & analyzed_introns == "7_6_4" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("IFRD2")
+
+ggsave("/path/to/plots/Fig5_IFRD2_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+
+## U2 mutant mouse
+
+```{r}
+
+binom_df_mouse <- read.table("/path/to/DirectRNA_SE_RI_analysis_revisited_mouse.txt", sep="\t", header=T)
+
+
+```
+
+```{r}
+
+# number of genes per category
+
+binom_df_mouse_Mu <- binom_df_mouse %>% 
+  mutate(new_category = case_when(category_Mu != "non-sig" & NO_INCL_Mu+count_Mu > YES_EXCL_Mu+count_Mu ~ "RI_SE",
+                                  category_Mu != "non-sig" & NO_INCL_Mu+count_Mu < YES_EXCL_Mu+count_Mu ~ "SE_RI",
+                                  category_Mu == "non-sig" ~ "non_sig",
+                                  TRUE ~ "non_sig")) %>%
+  group_by(gene_name, new_category) %>% summarise(n=n()) %>% spread(new_category, n) %>%
+  mutate(gene_category = case_when(!is.na(RI_SE) & !is.na(SE_RI) ~ "both",
+                                   !is.na(RI_SE) & is.na(SE_RI) ~ "RI|SE",
+                                   !is.na(SE_RI) & is.na(RI_SE) ~ "SE|RI",
+                                   !is.na(non_sig) & is.na(RI_SE) & is.na(SE_RI) ~ "non-sig",
+                                   TRUE ~ "other")) %>% 
+  group_by(gene_category) %>% summarise(n_genes=n()) %>% mutate(condition = "Mu")
+
+
+binom_df_mouse_WT <- binom_df_mouse %>% 
+  mutate(new_category = case_when(category_WT != "non-sig" & NO_INCL_WT+count_WT > YES_EXCL_WT+count_WT ~ "RI_SE",
+                                  category_WT != "non-sig" & NO_INCL_WT+count_WT < YES_EXCL_WT+count_WT ~ "SE_RI",
+                                  category_WT == "non-sig" ~ "non_sig",
+                                  TRUE ~ "non_sig")) %>%
+  group_by(gene_name, new_category) %>% summarise(n=n()) %>% spread(new_category, n) %>%
+  mutate(gene_category = case_when(!is.na(RI_SE) & !is.na(SE_RI) ~ "both",
+                                   !is.na(RI_SE) & is.na(SE_RI) ~ "RI|SE",
+                                   !is.na(SE_RI) & is.na(RI_SE) ~ "SE|RI",
+                                   !is.na(non_sig) & is.na(RI_SE) & is.na(SE_RI) ~ "non-sig",
+                                   TRUE ~ "other")) %>% 
+  group_by(gene_category) %>% summarise(n_genes=n()) %>% mutate(condition = "WT")
+
+
+binom_df_mouse_gene_counts <- rbind(binom_df_mouse_Mu, binom_df_mouse_WT) 
+binom_df_mouse_gene_counts$gene_category <- factor(binom_df_mouse_gene_counts$gene_category, levels=c("both","RI|SE","SE|RI","non-sig"))
+binom_df_mouse_gene_counts$condition <- factor(binom_df_mouse_gene_counts$condition, levels=c("WT","Mu"))
+
+binom_df_mouse_gene_counts %>%
+  ggplot(aes(x=gene_category, y=n_genes, fill=condition)) + geom_bar(stat="identity", position="dodge") + theme_bw() + scale_fill_manual(values=cbPalette_HeLa)
+
+ggsave("/path/to/plots/FigS7_SE_RI_gene_counts_per_condition_barplot_mouse.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+
+
+## Splicing orders for IFRD2
+
+```{r}
+
+# Load splicing orders without exon skipping and reformat
+PCR_paths <- read.table("/path/to/PCR_HeLa_U2_KD_chrRNA_PCR_all_samples_splicing_paths.no_SE.txt", sep="\t", header=T, stringsAsFactors = F)
+
+PCR_paths_norm <- PCR_paths %>% dplyr::select(full_path, full_path_score, gene_name, target, level, new_intron_spliced, rank) %>% distinct() %>%
+  group_by(target, gene_name) %>% mutate(max_score = max(full_path_score)) %>%
+  mutate(norm_score = full_path_score / max_score) %>% 
+  separate(target, c("condition"), extra="drop", sep="_", remove=F) %>%
+  filter(rank <= 10)
+
+
+```
+
+```{r}
+
+PCR_paths_norm %>% filter(gene_name == "IFRD2" & level > 0 & target %in% c("ctrl_kd_1","U2_kd_1")) %>% 
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, colour=condition, size=norm_score, alpha=norm_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + facet_wrap(~target, ncol=2, scales="free") +
+  scale_colour_manual(values=cbPalette_HeLa) + ggtitle("IFRD2") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS8_IFRD2_splicing_order_plot.pdf",
+       width = 5,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# Load splicing orders with exon skipping and reformat
+PCR_paths_wiSE <- read.table("/path/to/PCR_HeLa_U2_KD_chrRNA_PCR_all_samples_splicing_paths.with_SE.txt", sep="\t", header=T, stringsAsFactors = F)
+
+PCR_paths_wiSE_norm <- PCR_paths_wiSE %>% dplyr::select(full_path, full_path_score, gene_name, target, level, new_intron_spliced, rank) %>% distinct() %>%
+  group_by(target, gene_name) %>% mutate(max_score = max(full_path_score)) %>%
+  mutate(norm_score = full_path_score / max_score) %>% 
+  separate(target, c("condition"), extra="drop", sep="_", remove=F)
+
+
+```
+
+```{r}
+
+PCR_paths_wiSE_norm %>% filter(gene_name == "IFRD2" & (grepl("\\[5_6_7_8\\]", full_path) | grepl("\\[6_7_8\\]", full_path)) & level > 0 & rank <= 10 & target %in% c("ctrl_kd_1","U2_kd_1")) %>% 
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, colour=condition, size=norm_score, alpha=norm_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + facet_wrap(~target, ncol=2, scales="free") +
+  scale_colour_manual(values=cbPalette_HeLa) + ggtitle("IFRD2") + theme(legend.position = "none")
+
+ggsave("/path/to/plots/FigS8_IFRD2_splicing_order_plot_with_SE.pdf",
+       width = 5,
+    height = 2,
+    units = c("in"))
+
+```
+
+
+
+## Comparison of splicing order in IFRD2 for different PCR cycles
+
+```{r}
+
+PCR2_paths <- read.table("/path/to/result_files/PCR_seq/PCR_all_samples_splicing_paths_df.v2.12_vs_16_cycles.txt", sep="\t", header=T)
+
+PCR_paths_wiSE <- read.table("/path/to/result_files/PCR_seq/PCR_from_O2/220414_PCR_HeLa_ASO_chrRNA_PCR_all_samples_splicing_paths.txt", sep="\t", header=T, stringsAsFactors = F)
+
+# Retrieve the frequency of each intermediate isoform that has a frequency of > 0.01
+PCR2_pattern_counts <- PCR2_paths %>% 
+  dplyr::select(gene_name, sample_name, pattern2, count_pattern2, level) %>% distinct() %>%
+  group_by(gene_name, sample_name, level) %>% mutate(freq = count_pattern2 / sum(count_pattern2)) %>% filter(freq > 0.01) %>%
+  separate(sample_name, c("HeLa", "condition", "replicate", "cycles"), sep="_") %>%
+  group_by(gene_name, pattern2, cycles, level, condition) %>% summarise(mean_freq = mean(freq))
+
+PCR_pattern_counts <- PCR_paths_wiSE %>% 
+  dplyr::select(gene_name, target, pattern2, count_pattern2, level) %>% distinct() %>%
+  group_by(gene_name, target, level) %>% mutate(freq = count_pattern2 / sum(count_pattern2)) %>% filter(freq > 0.01) %>%
+  separate(target, c("condition","kd", "replicate"), sep="_") %>%
+  mutate(cycles = "20") %>%
+  group_by(gene_name, pattern2, cycles, level, condition) %>% summarise(mean_freq = mean(freq))
+
+```
+
+
+```{r}
+
+inner_join(PCR_pattern_counts, PCR2_pattern_counts, by=c("gene_name", "condition", "level", "pattern2")) %>% filter(gene_name == "IFRD2") %>%
+  filter(level < 6 & level > 0) %>%
+  ggplot(aes(x=mean_freq.x, y=mean_freq.y, color=factor(level))) + geom_point(size=1) + theme_bw() + facet_grid(condition~cycles.y) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="black") + scale_color_manual(values=cbPalette_long)
+  
+
+ggsave("/path/to/plots/FigS8_U2_intermediate_patterns_correlation_PCR_cycles.pdf",
+       width = 5,
+    height = 3.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+cor_df <- inner_join(PCR_pattern_counts, PCR2_pattern_counts, by=c("gene_name", "condition", "level", "pattern2")) %>% filter(gene_name == "IFRD2") %>%
+  filter(level < 6 & level > 0)
+
+ctrl_12_vs_20 <- cor_df %>% filter(condition == "ctrl" & cycles.y == 12)
+cor.test(ctrl_12_vs_20$mean_freq.x, ctrl_12_vs_20$mean_freq.y, method="pearson")
+
+```
+
+```{r}
+
+ctrl_16_vs_20 <- cor_df %>% filter(condition == "ctrl" & cycles.y == 16)
+cor.test(ctrl_16_vs_20$mean_freq.x, ctrl_16_vs_20$mean_freq.y, method="pearson")
+
+```
+
+```{r}
+
+U2_12_vs_20 <- cor_df %>% filter(condition == "U2" & cycles.y == 12)
+cor.test(U2_12_vs_20$mean_freq.x, U2_12_vs_20$mean_freq.y, method="pearson")
+
+```
+
+
+```{r}
+
+U2_16_vs_20 <- cor_df %>% filter(condition == "U2" & cycles.y == 16)
+cor.test(U2_16_vs_20$mean_freq.x, U2_16_vs_20$mean_freq.y, method="pearson")
+
+```
+

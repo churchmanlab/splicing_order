@@ -1,0 +1,1215 @@
+---
+title: "Fig4_and_FigS5-6_splicing_order_paper"
+output: html_document
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+knitr::opts_chunk$set(message = FALSE,        # Hide messages/warnings/errors from loading packages
+                      warning = FALSE,
+                      error = FALSE,
+                      cache = TRUE)           # By default, cache results to avoid re-running
+                                              # super long things every time you knit
+                      
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+library(mosaic)
+library(biomaRt)
+library(gplots)
+library(ggbeeswarm)
+library(DESeq2)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+getPalette <-  colorRampPalette(brewer.pal(9, "Spectral"))
+cbPalette <- getPalette(12)
+
+getPalette1 <- colorRampPalette(brewer.pal(8, "Dark2"))
+getPalette2 <- colorRampPalette(brewer.pal(8, "Set2"))
+getPalette3 <- colorRampPalette(brewer.pal(8, "Set1"))
+cbPalette_long <- c(getPalette1(8), getPalette2(8))
+cbPalette_extra_long <- c(getPalette1(12), getPalette2(12))
+
+MN_palette <- c("#FDE725FF", "#3CBB75FF","#2D708EFF","#481567FF")
+MN_palette_long <- c("#3CBB75FF","#2D708EFF","#2D708EFF", "#481567FF","#481567FF")
+
+```
+
+# Correlation in splicing order between replicates within each cell type
+
+```{r}
+
+# HeLa
+
+HeLa_paths_tmp <- read.table("/path/to/HeLa_chromatin_splicing_paths_non_consecutive_introns.RefSeq.min10.3_introns.txt", sep="\t", header=T)
+
+# Splicing orders without duplicated intron groups (same intron coordinates but different transcript)
+HeLa_paths_nodup <- read.table("/path/to/HeLa_splicing_order_paths_by_rep_nodup.txt", sep="\t", header=T)
+
+# Get intron groups
+HeLa_regions = HeLa_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+
+# Retrieve those intron groups from the raw splicing orders
+HeLa_paths_tmp <- HeLa_paths_tmp %>% inner_join(HeLa_regions, by=c("gene","gene_name","analyzed_introns"))
+
+# Get read counts
+HeLa_per_rep_counts <- HeLa_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2) %>% distinct()
+
+
+```
+
+
+```{r}
+
+HeLa_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>%
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.5, size=0.5) + theme_bw() + scale_y_continuous(trans="log10") + scale_x_continuous(trans="log10") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("counts per intron group - intermediate isoforms")
+
+ggsave("/path/to/plots/FigS5_HeLa_correlation_counts_per_intron_group_interm_isoforms.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_counts_HeLa = HeLa_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2))
+
+cor.test(log10(per_rep_counts_HeLa$rep1), log10(per_rep_counts_HeLa$rep2), method="pearson")
+
+
+```
+
+```{r}
+
+HeLa_per_rep_paths <- HeLa_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, full_path, full_path_score, rank) %>% distinct()
+
+HeLa_per_rep_paths %>% spread(sample_name, full_path_score) %>% 
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.3, size=1) + theme_bw() +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+
+ggsave("/path/to/plots/FigS5_HeLa_correlation_splicing_order_scores.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_paths_HeLa <- HeLa_per_rep_paths %>% spread(sample_name, full_path_score)
+
+cor.test(per_rep_paths_HeLa$rep1, per_rep_paths_HeLa$rep2, method="pearson")
+
+
+```
+
+
+```{r}
+
+# Same as above, for MN Day 9
+
+D9_paths_tmp <- read.table("/path/to/MN_D9_chromatin_splicing_paths_non_consecutive_introns.RefSeq.min10.3_introns.reps_each.txt", sep="\t", header=T)
+
+D9_paths_nodup <- read.table("/path/to/D9_splicing_order_paths_by_rep_nodup.txt", sep="\t", header=T)
+
+
+D9_regions = D9_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+
+D9_paths_tmp <- D9_paths_tmp %>% inner_join(D9_regions, by=c("gene","gene_name","analyzed_introns"))
+
+D9_per_rep_counts <- D9_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2) %>% distinct()
+
+
+```
+
+
+```{r}
+
+D9_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>%
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.5, size=0.5) + theme_bw() + scale_y_continuous(trans="log10") + scale_x_continuous(trans="log10") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("counts per intron group - intermediate isoforms")
+
+ggsave("/path/to/plots/FigS5_D9_correlation_counts_per_intron_group_interm_isoforms.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_counts_D9 = D9_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2))
+
+cor.test(log10(per_rep_counts_D9$rep1), log10(per_rep_counts_D9$rep2), method="pearson")
+
+
+```
+
+
+```{r}
+
+D9_per_rep_paths <- D9_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, full_path, full_path_score, rank) %>% distinct()
+
+D9_per_rep_paths %>% spread(sample_name, full_path_score) %>% 
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.3, size=1) + theme_bw() +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+
+ggsave("/path/to/plots/FigS5_D9_correlation_splicing_order_scores.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_paths_D9 <- D9_per_rep_paths %>% spread(sample_name, full_path_score)
+
+cor.test(per_rep_paths_D9$rep1, per_rep_paths_D9$rep2, method="pearson")
+
+
+```
+
+
+```{r}
+
+# Same as above, for MN Day 14
+
+D14_paths_tmp <- read.table("/path/to/MN_D14_chromatin_splicing_paths_non_consecutive_introns.RefSeq.min10.3_introns.reps_each.txt", sep="\t", header=T)
+
+D14_paths_nodup <- read.table("/path/to/D14_splicing_order_paths_by_rep_nodup.txt", sep="\t", header=T)
+
+
+D14_regions = D14_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+
+D14_paths_tmp <- D14_paths_tmp %>% inner_join(D14_regions, by=c("gene","gene_name","analyzed_introns"))
+
+D14_per_rep_counts <- D14_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2) %>% distinct()
+
+
+```
+
+
+```{r}
+
+D14_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>%
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.5, size=0.5) + theme_bw() + scale_y_continuous(trans="log10") + scale_x_continuous(trans="log10") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("counts per intron group - intermediate isoforms")
+
+ggsave("/path/to/plots/FigS5_D14_correlation_counts_per_intron_group_interm_isoforms.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+per_rep_counts_D14 = D14_per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2))
+
+cor.test(log10(per_rep_counts_D14$rep1), log10(per_rep_counts_D14$rep2), method="pearson")
+
+
+```
+
+```{r}
+
+D14_per_rep_paths <- D14_paths_tmp %>% dplyr::select(sample_name, gene_name, gene, analyzed_introns, full_path, full_path_score, rank) %>% distinct()
+
+D14_per_rep_paths %>% spread(sample_name, full_path_score) %>% 
+  ggplot(aes(x=rep1, y=rep2)) + geom_point(alpha=0.3, size=1) + theme_bw() +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+
+ggsave("/path/to/plots/FigS5_D14_correlation_splicing_order_scores.pdf",
+       width = 3,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+per_rep_paths_D14 <- D14_per_rep_paths %>% spread(sample_name, full_path_score)
+
+cor.test(per_rep_paths_D14$rep1, per_rep_paths_D14$rep2, method="pearson")
+
+
+```
+
+## Evenness across cell types
+
+```{r}
+
+# Evenness values computed in python
+
+SDI_df <- read.table("/path/to/splicing_order_comparison_cell_types_evenness.txt", sep="\t", header=T)
+
+SDI_df %>%
+  ggplot(aes(x=sample_name, y=Evenness, fill=category)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + scale_fill_manual(values=c(cbPalette_long[2],cbPalette_long[7]))
+
+ggsave("/path/to/plots/FigS5_Evenness_all_cell_types.pdf",
+       width = 3.5,
+    height = 2,
+    units = c("in"))
+
+```
+
+
+# Identification of AS events in short-read RNA-seq
+
+```{r}
+
+# rmats outputs for comparison between each pair of timepoints (SE)
+D0_D9_SE <- read.table("/path/to/MN_D0_chr_vs_MN_D9_chr_SE.MATS.JC.txt", sep="\t", header=T)
+D0_D14_SE <- read.table("/path/to/MN_D0_chr_vs_MN_D14_chr_SE.MATS.JC.txt", sep="\t", header=T)
+D9_D14_SE <- read.table("/path/to/MN_D9_chr_vs_MN_D14_chr_SE.MATS.JC.txt", sep="\t", header=T)
+D9_D14_polyA_SE <- read.table("/path/to/MN_D9_chr_vs_MN_D14_chr_polyA_SE.MATS.JC.txt", sep="\t", header=T)
+
+# Define minimum coverage threshold
+t = 10
+
+# Add sample names
+D0_D9_SE$comparison <- "D0_vs_D9"
+D0_D14_SE$comparison <- "D0_vs_D14"
+D9_D14_SE$comparison <- "D9_vs_D14"
+D9_D14_polyA_SE$comparison <- "D9polyA_vs_D14polyA"
+
+SE_df = rbind(D0_D9_SE,D0_D14_SE,D9_D14_SE,D9_D14_polyA_SE)
+
+SE_sig <- SE_df %>% filter(FDR < 0.05 & abs(IncLevelDifference) > 0.1) %>% 
+                           separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+                         dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, upstreamES, upstreamEE, downstreamES, downstreamEE, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>%
+                       arrange(comparison, FDR) %>% distinct()
+
+```
+
+
+```{r}
+
+# rmats outputs for comparison between each pair of timepoints (MXE)
+D0_D9_MXE <- read.table("/path/to/MN_D0_chr_vs_MN_D9_chr_MXE.MATS.JC.txt", sep="\t", header=T)
+D0_D14_MXE <- read.table("/path/to/MN_D0_chr_vs_MN_D14_chr_MXE.MATS.JC.txt", sep="\t", header=T)
+D9_D14_MXE <- read.table("/path/to/MN_D9_chr_vs_MN_D14_chr_MXE.MATS.JC.txt", sep="\t", header=T)
+D9_D14_polyA_MXE <- read.table("/path/to/MN_D9_chr_vs_MN_D14_chr_polyA_MXE.MATS.JC.txt", sep="\t", header=T)
+
+# Define minimum coverage threshold
+t = 10
+
+# Add sample names
+D0_D9_MXE$comparison <- "D0_vs_D9"
+D0_D14_MXE$comparison <- "D0_vs_D14"
+D9_D14_MXE$comparison <- "D9_vs_D14"
+D9_D14_polyA_MXE$comparison <- "D9polyA_vs_D14polyA"
+
+MXE_df = rbind(D0_D9_MXE,D0_D14_MXE,D9_D14_MXE,D9_D14_polyA_MXE)
+
+MXE_sig <- MXE_df %>% filter(FDR < 0.05 & abs(IncLevelDifference) > 0.1) %>% 
+                           separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+                         dplyr::select(GeneID, geneSymbol, chr, strand, X1stExonStart_0base, X1stExonEnd,X2ndExonStart_0base,X2ndExonEnd, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>%
+                       arrange(comparison, FDR) %>% distinct()
+
+```
+
+
+```{r}
+
+# Number of SE events
+
+nrow(SE_sig %>% dplyr::select(chr, strand, exonStart_0base, exonEnd) %>% distinct())
+
+```
+
+```{r}
+
+# Write SE events to file for Supplemental Table
+
+write.table(SE_sig, "/path/to/tables/TableS6_SE_events_from_short_read.txt", sep="\t", col.names=T, row.names=F, quote=F)
+
+```
+
+
+## PCA on exon inclusion levels
+
+```{r}
+
+# Retrieve significant SE events
+sig_events_SE <- SE_sig %>% dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd) %>% distinct()
+
+# Retrieve counts from Day 4: although we only have one replicate from Day 4, I used rMATS to get the Inclusion Levels from those samples by considering Day4 and Day4_polyA as biological replicates
+# and comparing them to the two D0 replicates. However, I did not use the statistics produced, only the inclusion levels per sample
+D0_D4_SE <- read.table("/path/to/MN_D0_chr_vs_MN_D4_chr_SE.MATS.JC.txt", sep="\t", header=T)
+
+SE_df_all <- rbind(SE_df,D0_D4_SE) %>% 
+  separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+                         dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>% distinct() %>% gather(id, IncLevel, c("IncLevel1","IncLevel2")) %>% separate(IncLevel, c("rep1","rep2"), sep=",", convert=TRUE) %>%
+  separate(comparison, c("timepoint1","vs","timepoint2"), sep="_") %>%
+  mutate(sample_name = case_when(id == "IncLevel1" ~ timepoint1,
+                                 id == "IncLevel2" ~ timepoint2)) %>%
+  gather(replicate, IncLevel, c("rep1","rep2")) %>%
+  dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, sample_name,replicate, IncLevel) %>% 
+  distinct(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, sample_name,replicate, .keep_all = T)
+
+
+SE_df_spr <- SE_df_all %>% unite(sample_name, c("sample_name", "replicate"), sep="_") %>% 
+  mutate(sample_name = replace(sample_name, sample_name == "D4_rep2", "D4polyA_rep1")) %>% 
+  spread(sample_name, IncLevel) %>% drop_na() %>%
+  unite(exon_id, c("GeneID","geneSymbol","chr","strand","exonStart_0base","exonEnd"), sep="_")
+rownames(SE_df_spr) <- SE_df_spr$exon_id
+SE_df_spr$exon_id <- NULL
+
+```
+
+
+```{r}
+
+# Perform PCA
+pca <- prcomp(t(SE_df_spr))
+percentVar <- pca$sdev ^ 2 / sum(pca$sdev ^ 2)
+
+data.pca <- data.frame('PC1' = pca$x[, 'PC1'],
+                       'PC2' = pca$x[, 'PC2'],
+                       'Sample' = colnames(SE_df_spr))
+
+# Plot PCA, coloured by condition
+data.pca_bis <- data.pca %>%
+  separate(Sample, c("timepoint", "replicate"), sep="_") %>%
+  separate(timepoint, c("timepoint", "RNA_tmp"), sep="p") %>%
+  mutate(RNA = case_when(RNA_tmp == "olyA" ~ "polyA+",
+                         is.na(RNA_tmp) ~ "rRNA_depleted"))
+data.pca_bis$timepoint <- factor(data.pca_bis$timepoint, levels=c("D0","D4","D9","D14"))
+
+data.pca_bis %>%
+  ggplot(aes(x=PC1, y=PC2, colour=timepoint, shape=RNA)) + geom_point(size=4) + 
+  theme_bw() + theme(text = element_text(size=14), panel.border = element_rect(fill = NA, colour = "black")) + 
+  xlab(paste0("PC1: ", round(percentVar[1] * 100), "% variance")) + ylab(paste0("PC2: ", round(percentVar[2] * 100), "% variance")) +
+  scale_color_manual(values=MN_palette) + ggtitle("SE events")
+
+ggsave("/path/to/plots/FigS5_Motor_neurons_PCA_SE_events.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+# Gene expression in short-read RNA-seq data
+
+```{r}
+
+sampleNames <- c("MN_D0_chr_rep1","MN_D0_chr_rep2","MN_D4_chr_rep1","MN_D4_chr_polyA_rep1","MN_D9_chr_rep1","MN_D9_chr_rep2","MN_D14_chr_rep1","MN_D14_chr_rep2",
+                 "MN_D9_chr_polyA_rep1","MN_D9_chr_polyA_rep2","MN_D14_chr_polyA_rep1","MN_D14_chr_polyA_rep2")
+conditions <- c("D0", "D0","D4","D4polyA", "D9","D9","D14","D14","D9polyA","D9polyA","D14polyA","D14polyA")
+
+# Merge the counts from all the samples for hg38 (obtained with featureCounts on cluster)
+counts_hg38 <- do.call(cbind, lapply(sampleNames, function(x) {
+  myDF = paste("/path/to/", paste(x, ".counts.per_gene.exon.hg38.s1.tsv", sep=""), sep="")
+  df = read.table(myDF, header=T, row.names=1, sep="\t")
+}))
+
+
+
+```
+
+```{r}
+# Define experimental design
+colData <- data.frame(row.names=colnames(counts_hg38), condition = conditions, libType = rep("paired-end", length(sampleNames)))
+
+#Instantiate a countdataset (central structure in the DESeq package)
+dds <- DESeqDataSetFromMatrix(countData = counts_hg38, colData = colData, design = ~ condition)
+
+# Estimate size factors
+dds <- estimateSizeFactors(dds)
+sf_hg38 <- sizeFactors(dds)
+
+```
+
+```{r}
+
+# Normalize counts with size factors
+normCounts <- counts(dds, normalized=TRUE)
+normCounts <- data.frame(normCounts)
+
+# Estimate dispersion
+dds <- estimateDispersions(dds)
+plotDispEsts(dds)
+
+# Apply variance stabilizing transformation
+vsd <- varianceStabilizingTransformation(dds, blind = TRUE, fitType = "parametric")
+vstData <- getVarianceStabilizedData(dds)
+vstData <- data.frame(vstData)
+selection <- order(apply(vstData, 1, var), decreasing = T)[1:1000]
+data.subset <- vstData[selection, ]
+
+```
+
+```{r}
+# Perform PCA
+pca <- prcomp(t(data.subset))
+percentVar <- pca$sdev ^ 2 / sum(pca$sdev ^ 2)
+
+data.pca <- data.frame('PC1' = pca$x[, 'PC1'],
+                       'PC2' = pca$x[, 'PC2'],
+                       'Sample' = colnames(data.subset))
+
+# Plot PCA, coloured by condition
+data.pca_bis <- data.pca %>%
+  separate(Sample, c("MN", "timepoint", "chromatin", "replicate"), sep="_", extra="merge") %>% dplyr::select(-MN, -chromatin) %>%
+  mutate(RNA = case_when(grepl("polyA",replicate) ~ "polyA+",
+                         TRUE ~ "rRNA_depleted")) %>%
+  mutate(replicate = replace(replicate, replicate == "polyA_rep1", "rep1"),
+         replicate = replace(replicate, replicate == "polyA_rep2", "rep2"))
+data.pca_bis$timepoint <- factor(data.pca_bis$timepoint, levels=c("D0","D4","D9","D14"))
+
+ggplot(data.pca_bis, aes(x=PC1, y=PC2, colour=timepoint, shape=RNA)) + geom_point(size=4) + theme_bw() +
+  xlab(paste0("PC1: ", round(percentVar[1] * 100), "% variance")) + ylab(paste0("PC2: ", round(percentVar[2] * 100), "% variance")) +
+  ggtitle("1000 most variant genes") + scale_color_manual(values=MN_palette) #+ xlim(-40,15) + ylim(-8,8)
+
+ggsave("/path/to/plots/FigS5_Motor_neurons_PCA_gene_expression.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+
+# Expression of differentiation markers in short-read RNA-seq
+
+```{r}
+
+## Get gene name annotations from Ensembl
+
+mart = useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")#without further specifications this retrieves latest hg release (including patches). This is adequate
+
+geneID2name = getBM(attributes = c("ensembl_gene_id","external_gene_name","hgnc_symbol","hgnc_id","gene_biotype","description"),mart=mart)
+#sort first by ensID (to have gnsdf and geneID2name match transcripts), then assign new column
+
+
+```
+
+```{r}
+
+markers <- c("SOX2","PAX6","OLIG2","ISL1", "LHX3","MNX1")
+
+normCounts$ensembl_gene_id <- rownames(normCounts)
+
+normCounts_markers <- normCounts %>% gather(sample_name, norm_count, sampleNames) %>%
+  filter(!grepl("polyA", sample_name)) %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>%
+  filter(external_gene_name %in% markers) %>%
+  separate(sample_name, c("MN","timepoint","chromatin","replicate"), sep="_")
+
+normCounts_markers$timepoint <- factor(normCounts_markers$timepoint, levels=c("D0","D4","D9","D14"))
+
+normCounts_avg_markers <- normCounts_markers %>%
+  group_by(external_gene_name, ensembl_gene_id, timepoint) %>%
+  summarise(avg_norm_count = mean(norm_count))
+
+normCounts_markers$external_gene_name <- factor(normCounts_markers$external_gene_name, levels=c("SOX2","PAX6","OLIG2","ISL1", "LHX3","MNX1"))
+normCounts_avg_markers$external_gene_name <- factor(normCounts_avg_markers$external_gene_name, levels=c("SOX2","PAX6","OLIG2","ISL1", "LHX3","MNX1"))
+  
+normCounts_avg_markers %>%
+  ggplot(aes(x=timepoint, y=avg_norm_count, fill=timepoint)) + geom_bar(stat="identity", position="dodge") + theme_bw() +
+  geom_point(data=normCounts_markers, aes(x=timepoint, y=norm_count, group=timepoint), 
+             position = position_dodge(width = 0.9), size=2) + 
+  facet_wrap(~external_gene_name, scales="free_y", ncol=3) + scale_fill_manual(values=MN_palette)
+
+ggsave("/path/to/plots/FigS5_Neuronal_marker_expression_short_read_RNA-seq.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+
+## Define intron groups for analysis of splicing order and AS
+
+
+```{r}
+
+# Get intron annotations
+intron_df = read.table("/path/to/GENCODE_V38_introns.bed", sep="\t", header=F)
+colnames(intron_df) <- c("chrom","start","end","intron_name","score","strand")
+
+```
+
+
+```{r}
+
+# Filter for protein-coding genes only
+pc_genes <- geneID2name %>% filter(gene_biotype == "protein_coding")
+
+# Define intron groups for exons that are differentially included between Days 9 and 14 in poly(A)+ short-read RNA-seq (same samples as for direct RNA-seq)
+SE_sig_coord_sub <- SE_sig %>% filter(comparison == "D9polyA_vs_D14polyA" & GeneID %in% pc_genes$ensembl_gene_id) %>%
+  mutate(int1a_start = upstreamEE, int1a_end = exonStart_0base, int2_start = exonEnd, int2_end = downstreamES, 
+         int1b_start = upstreamEE,int1b_end = downstreamES) %>%
+  unite(SE_id, c("GeneID","geneSymbol","chr","exonStart_0base","exonEnd","strand"), sep="_", remove=F)
+
+# Retrieve coordinates
+SE_sig_coord_sub_int1 <- SE_sig_coord_sub %>% mutate(intron_type = "short_intron1") %>%
+  dplyr::select(chr, int1a_start, int1a_end, SE_id,intron_type,strand) %>% distinct()
+SE_sig_coord_sub_int2 <- SE_sig_coord_sub %>% mutate(intron_type = "short_intron2") %>%
+  dplyr::select(chr, int2_start, int2_end, SE_id,intron_type,strand) %>% distinct()
+SE_sig_coord_sub_int3 <- SE_sig_coord_sub %>% mutate(intron_type = "long_intron") %>%
+  dplyr::select(chr, int1b_start, int1b_end, SE_id,intron_type,strand) %>% distinct()
+SE_sig_coord_sub_int4 <- SE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","upstreamES"="end","strand")) %>%
+  mutate(intron_type = "upstream_intron") %>% dplyr::select(chr, start, upstreamES, SE_id,intron_type,strand) %>% distinct()
+SE_sig_coord_sub_int5 <- SE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","downstreamEE"="start","strand")) %>%
+  mutate(intron_type = "downstream_intron") %>% dplyr::select(chr, downstreamEE, end, SE_id,intron_type,strand) %>% distinct()
+
+colnames(SE_sig_coord_sub_int1) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(SE_sig_coord_sub_int2) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(SE_sig_coord_sub_int3) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(SE_sig_coord_sub_int4) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(SE_sig_coord_sub_int5) <- c("chrom","start","end","event_name","event_type","strand")
+
+# Combine all introns
+SE_sig_coord_sub_bed <- rbind(SE_sig_coord_sub_int1, SE_sig_coord_sub_int2, SE_sig_coord_sub_int3, SE_sig_coord_sub_int4,SE_sig_coord_sub_int5) %>%
+  arrange(chrom, start, end) %>% inner_join(intron_df, by=c("chrom","start","end","strand")) %>% 
+  separate(intron_name, c("gene","intron","count"), sep="_", extra="drop")
+
+# Get transcripts
+SE_transcripts <- SE_sig_coord_sub_bed %>% arrange(chrom, start, end, count) %>% distinct(event_name, event_type, gene, .keep_all = T) %>%
+  unite(coord, c("chrom","start","end","strand"), sep="_") %>% dplyr::select(-intron, -score, -count) %>%
+  spread(event_type, coord) %>%
+  filter((!is.na(short_intron1) & !is.na(short_intron2) & (!is.na(downstream_intron) | !is.na(upstream_intron))) |
+           (!is.na(long_intron) & (!is.na(downstream_intron) | !is.na(upstream_intron)))) %>% 
+  distinct(event_name, downstream_intron, long_intron, short_intron1, short_intron2, upstream_intron, .keep_all = T) %>% 
+  dplyr::select(gene) %>% distinct()
+
+SE_sig_coord_sub_bed_final <- SE_sig_coord_sub_bed %>% filter(gene %in% SE_transcripts$gene) %>% dplyr::select(chrom, start, end, gene, count, strand) %>% distinct() %>% arrange(chrom, start, end)
+
+# Write to file for use on cluster
+write.table(SE_sig_coord_sub_bed_final, "/path/to/MN_SE_introns_Day9_vs_D14_polyA.bed", sep="\t", col.names=F, row.names=F, quote=F)
+
+```
+
+
+
+```{r}
+
+# Get gene names and corresponding intron numbers per transcript
+
+gene_names_df <- read.table("/path/to/Ensembl_geneID2name_hsapiens_gene_ensembl_with_intron_number_per_gene.txt", sep="\t", header=T)
+
+```
+
+
+
+```{r}
+
+# Get inclusion levels per sample for each SE event
+
+intron_df_bis <- intron_df %>% separate(intron_name, c("gene","intron","count"), sep="_", extra="drop")
+
+SE_diff_introns_only <- SE_sig_coord_sub_bed %>% arrange(chrom, start, end, count) %>% distinct(event_name, event_type, gene, .keep_all = T) %>%
+  unite(coord, c("chrom","start","end","strand"), sep="_") %>% dplyr::select(-intron, -score, -count) %>%
+  spread(event_type, coord) %>%
+  filter((!is.na(short_intron1) & !is.na(short_intron2) & (!is.na(downstream_intron) | !is.na(upstream_intron))) |
+           (!is.na(long_intron) & (!is.na(downstream_intron) | !is.na(upstream_intron)))) %>%
+  distinct(event_name, downstream_intron, short_intron1, short_intron2, upstream_intron, .keep_all = T) %>%
+  dplyr::select(event_name, gene, long_intron, short_intron1, short_intron2) %>% 
+  gather(position, coord, c("long_intron", "short_intron1","short_intron2")) %>% drop_na() %>%
+  separate(coord, c("chrom","start","end","strand"), sep="_", convert=T) %>%
+  inner_join(intron_df_bis, by=c("gene","chrom","start","end","strand")) %>% dplyr::select(-intron, -score) %>%
+  inner_join(gene_names_df, by=c("gene","strand")) %>%
+  mutate(intron_pos = case_when(strand == "+" ~ as.numeric(count)+1,
+                                strand == "-" ~ intron_total - as.numeric(count))) %>%
+  arrange(gene, count) %>% dplyr::select(event_name, position, gene, intron_pos) %>% distinct() 
+
+# Retrieve inclusion levels for those introns
+SE_incl_df <- SE_sig %>% filter(comparison == "D9polyA_vs_D14polyA") %>%
+  unite(event_name, c("GeneID","geneSymbol","chr","exonStart_0base","exonEnd","strand"), sep="_") %>%
+  separate(IncLevel1, c("D9_rep1","D9_rep2"), sep=",") %>%
+  separate(IncLevel2, c("D14_rep1","D14_rep2"), sep=",") %>%
+  dplyr::select(event_name, D9_rep1, D9_rep2, D14_rep1, D14_rep2, IncLevelDifference) %>% distinct()
+
+write.table(SE_incl_df, "/path/to/MN_SE_inclusion_levels_Day9_vs_D14_polyA.bed", sep="\t", col.names=T, row.names=F, quote=F)
+write.table(SE_diff_introns_only, "/path/to/MN_SE_introns_numbers_Day9_vs_D14_polyA.bed", sep="\t", col.names=T, row.names=F, quote=F)
+
+
+```
+
+
+## Splicing order for AS events
+
+```{r}
+
+# Load splicing orders computed on cluster
+
+D9_paths <- read.table("/path/to/MN_D9_chrRNA_merged_chromatin_splicing_paths_SE_introns.reps_merged.no_unspliced_filter.txt", sep="\t", header=T, stringsAsFactors = F)
+D14_paths <- read.table("/path/to/MN_D14_chrRNA_merged_chromatin_splicing_paths_SE_introns.reps_merged.no_unspliced_filter.txt", sep="\t", header=T, stringsAsFactors = F)
+
+D9_paths$sample_name <- "D9"
+D14_paths$sample_name <- "D14"
+
+SE_paths <- rbind(D9_paths, D14_paths)
+SE_paths$sample_name <- factor(SE_paths$sample_name, levels=c("D9","D14"))
+  
+
+```
+
+# Plot splicing order for example genes
+
+```{r}
+
+SE_paths %>% filter(gene_name == "SCRIB" & level > 0) %>%
+  filter((gene == "ENST00000320476.7" & analyzed_introns == "35_34_33" & sample_name == "D9") | (gene == "ENST00000356994.7" & analyzed_introns == "36_35_34_33")) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + facet_wrap(sample_name~gene, scales="free", ncol=1) +
+  ggtitle("SCRIB") + theme(legend.position="none")
+
+ggsave("/path/to/plots/Fig4B_SCRIB_splicing_order_paths.pdf",
+       width = 2,
+    height = 5.5,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+SE_paths %>% filter(gene_name == "EIF4A2" & level > 0) %>%
+  filter((gene == "ENST00000425053.5" & analyzed_introns == "9_10_11" & sample_name == "D9") | (gene == "ENST00000323963.10" & analyzed_introns == "9_10")) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + facet_wrap(sample_name~gene, scales="free", ncol=1) +
+  ggtitle("EIF4A2") + theme(legend.position="none")
+
+ggsave("/path/to/plots/Fig4B_EIF4A2_splicing_order_paths.pdf",
+       width = 2,
+    height = 5.5,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+SE_paths %>% filter(gene_name == "SLC37A4" & level > 0) %>%
+  filter((gene == "ENST00000330775.9" & analyzed_introns == "9_8_7" & sample_name == "D9") | (gene == "ENST00000357590.9" & analyzed_introns == "11_10_9_8" & sample_name == "D14")) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + facet_wrap(sample_name~gene, scales="free", ncol=2) +
+  ggtitle("SLC37A4") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS6_SLC37A4_splicing_order_paths.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+
+```
+
+
+
+# Plot splicing order scores for generic orders
+
+```{r}
+
+MN_paths = read.table("/path/to/MN_D9_vs_D14_splicing_order_AS_generic_paths.txt", sep="\t", header=T)
+
+
+MN_paths <- MN_paths %>% separate(order, c("sample_name", "isoform", "generic_path"), sep=",")
+MN_paths$sample_name <- factor(MN_paths$sample_name, levels=c("D9","D14"))
+MN_paths$generic_path <- factor(MN_paths$generic_path, levels=c("AS_first","AS_last","AS_last_single","other"))
+
+```
+
+
+```{r}
+
+MN_paths %>%
+  ggplot(aes(x=generic_path, y=score, color=sample_name)) + facet_wrap(~isoform, scales="free_x") + geom_boxplot(outlier.shape = NA) +
+  geom_quasirandom(cex=0.5, alpha=0.5, dodge.width=.8) +
+  theme_bw() +
+  scale_color_manual(values=MN_palette[3:4]) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave("/path/to/plots/Fig4_AS_splicing_order_boxplot.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+# Correlations in splicing order score between isoforms and timepoints
+
+```{r}
+
+MN_paths$generic_path <- factor(MN_paths$generic_path, levels=c("AS_first","AS_last","AS_last_single","other"))
+
+MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(sample_name, score) %>% drop_na() %>% 
+  ggplot(aes(x=D9, y=D14, color=generic_path)) + geom_point() + theme_bw() + facet_wrap(~isoform) + scale_color_manual(values=c(cbPalette_long[1:2],cbPalette_long[4],cbPalette_long[3])) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+ggsave("/path/to/plots/Fig4_AS_splicing_order_correlation_D9_vs_D14.pdf",
+       width = 4.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+cor_df_excl <- MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(sample_name, score) %>% drop_na() %>% filter(isoform == "exclusion")
+
+cor.test(cor_df_excl$D9, cor_df_excl$D14, method="pearson")
+
+```
+
+```{r}
+
+cor_df_incl <- MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(sample_name, score) %>% drop_na() %>% filter(isoform == "inclusion")
+
+cor.test(cor_df_incl$D9, cor_df_incl$D14, method="pearson")
+
+```
+
+
+
+```{r}
+
+MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(sample_name, score) %>% drop_na() %>% mutate(diff_score = abs(D14 - D9)) %>%
+  ggplot(aes(x=isoform, y=diff_score, color=generic_path)) + geom_boxplot(outlier.shape = NA) + geom_quasirandom(cex=0.5, alpha=0.5, dodge.width=.8) +
+  scale_color_manual(values=c(cbPalette_long[1:2],cbPalette_long[4],cbPalette_long[3])) + theme_bw() +
+  ggtitle("D9 vs D14")
+
+
+ggsave("/path/to/plots/FigS6_AS_splicing_order_diff_score_D9_vs_D14.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+
+```
+
+
+```{r}
+
+MN_paths %>% 
+  mutate(generic_path = replace(generic_path, generic_path == "AS_last_single", "other"))  %>%
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(isoform, score) %>% drop_na() %>% 
+  ggplot(aes(x=inclusion, y=exclusion, color=generic_path)) + geom_point() + theme_bw() + facet_wrap(~sample_name) + 
+  scale_color_manual(values=cbPalette_long) +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+ggsave("/path/to/plots/Fig4_AS_splicing_order_correlation_incl_vs_excl.pdf",
+       width = 4.5,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+cor_df_D9 <- MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(isoform, score) %>% drop_na() %>% filter(sample_name == "D9")
+
+cor.test(cor_df_D9$inclusion, cor_df_D9$exclusion, method="pearson")
+
+```
+
+```{r}
+
+cor_df_D14 <- MN_paths %>% 
+  group_by(event_name, sample_name, isoform, generic_path) %>% summarise(score=sum(score)) %>%
+  spread(isoform, score) %>% drop_na() %>% filter(sample_name == "D14")
+
+cor.test(cor_df_D14$inclusion, cor_df_D14$exclusion, method="pearson")
+
+```
+
+
+# Number of intron groups based on splicing order position of AS introns
+
+```{r}
+
+pairwise_df = read.table("/path/to/MN_splicing_order_AS_pairwise_comparisons_counts.txt",sep="\t", header=T)
+pairwise_df$comparison <- factor(pairwise_df$comparison, levels=c("D9_incl_vs_excl","D14_incl_vs_excl","excl_D9_vs_D14","incl_D9_vs_D14"))
+
+pairwise_df %>% unite(generic_path, c("generic_path_x","generic_path_y"), sep="__") %>%
+  ggplot(aes(x=reorder(generic_path,event_name), y=event_name)) + geom_bar(stat="identity") + facet_wrap(~comparison, scales="free", ncol=4) + theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + ylab("number of intron groups") + xlab("")
+
+ggsave("/path/to/plots/FigS6_AS_splicing_order_top_rank_categories.pdf",
+       width = 4.5,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+
+# Comparison to splicing index from short-read RNA-seq
+
+```{r}
+
+sampleNames <- c("MN_D0_chr_rep1","MN_D0_chr_rep2","MN_D4_chr_rep1","MN_D9_chr_rep1","MN_D9_chr_rep2","MN_D14_chr_rep1","MN_D14_chr_rep2",
+                 "MN_D4_chr_polyA_rep1",
+                 "MN_D9_chr_polyA_rep1","MN_D9_chr_polyA_rep2","MN_D14_chr_polyA_rep1","MN_D14_chr_polyA_rep2")
+conditions <- c("D0", "D0","D4","D4polyA", "D9","D9","D14","D14","D9polyA","D9polyA","D14polyA","D14polyA")
+
+# Merge the splicing index from all the samples for hg38
+SI_hg38 <- do.call(rbind, lapply(sampleNames, function(x) {
+  myDF = paste("/path/to/", paste(x, ".splicingIndex.SE_intron_groups.txt", sep=""), sep="")
+  df = read.table(myDF, header=T, sep="\t") %>% mutate(sample_name = x, chr = paste("chr", chr, sep=""))
+}))
+
+colnames(SI_hg38) <- c("gene","event_name","chrom","start","end","strand","X5SS_count","X3SS_count","splice_count","sample_name")
+
+SI_hg38$sample_name <- factor(SI_hg38$sample_name, levels=sampleNames)
+
+# Use coordinates computed above
+SE_sig_coord_bed$event_type <- factor(SE_sig_coord_bed$event_type, levels=c("upstream_intron","short_intron1","short_intron2","long_intron","downstream_intron"))
+
+# Merge splicing index with intron group coordinates
+SI_hg38 %>% inner_join(SE_sig_coord_bed, by=c("chrom","start","end","strand")) %>% 
+  filter(event_name.y %in% SE_diff_introns_only$event_name) %>%
+  dplyr::select(-event_name.x, -event_name.y, -gene) %>% distinct() %>%
+  mutate(total_counts = splice_count + X5SS_count + X3SS_count) %>% filter(total_counts >= 20) %>%
+  mutate(SI = 2*splice_count / (X5SS_count + X3SS_count + 1)) %>%
+  mutate(RNA = case_when(grepl("polyA",sample_name) ~ "polyA+",
+                         TRUE ~ "rRNA-depleted")) %>%
+  ggplot(aes(x=sample_name, y=SI, fill=event_type)) + geom_boxplot(outlier.size=0.5) + theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + scale_y_continuous(trans="log10") + 
+  scale_fill_manual(values=cbPalette_long[9:15]) + facet_wrap(~RNA, scales="free_x") +
+  ggtitle("all intron groups that change between Days 9 and 14")
+
+ggsave("/path/to/plots/FigS6_SE_intron_groups_all_splicing_index.pdf",
+       width = 7,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# Repeat, but only for intron groups that had sufficient coverage to be analyzed by direct RNA seq
+
+SI_hg38 %>% inner_join(SE_sig_coord_bed, by=c("chrom","start","end","strand")) %>% 
+  filter(event_name.y %in% MN_paths$event_name) %>%
+  dplyr::select(-event_name.x, -event_name.y, -gene) %>% distinct() %>%
+  mutate(total_counts = splice_count + X5SS_count + X3SS_count) %>% filter(total_counts >= 20) %>%
+  mutate(SI = 2*splice_count / (X5SS_count + X3SS_count + 1)) %>%
+  mutate(RNA = case_when(grepl("polyA",sample_name) ~ "polyA+",
+                         TRUE ~ "rRNA-depleted")) %>%
+  ggplot(aes(x=sample_name, y=SI, fill=event_type)) + geom_boxplot(outlier.size=0.5) + theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + scale_y_continuous(trans="log10") + 
+  scale_fill_manual(values=cbPalette_long[9:15]) + facet_wrap(~RNA, scales="free_x") +
+  ggtitle("intron groups analyzed for splicing order")
+
+ggsave("/path/to/plots/FigS6_SE_intron_groups_covered_splicing_index.pdf",
+       width = 7,
+    height = 4,
+    units = c("in"))
+
+```
+
+
+## Evenness per isoform
+
+```{r}
+
+SDI_df = read.table("/path/to/MN_AS_intron_groups_evenness_per_isoform.txt", sep="\t", header=T)
+
+```
+
+
+```{r}
+
+SDI_df$sample_name <- factor(SDI_df$sample_name, levels=c("D9","D14"))
+
+SDI_df %>% dplyr::select(gene, analyzed_introns, sample_name, isoform, Evenness) %>% distinct() %>%
+  ggplot(aes(x=sample_name, y=Evenness, color=isoform)) + geom_boxplot(outlier.shape=NA) + geom_quasirandom(cex=0.5, alpha=0.5, dodge.width=.8) + theme_bw() +
+  scale_color_manual(values=cbPalette_long[9:12])
+
+ggsave("/path/to/plots/FigS6_evenness_per_isoform.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# stats
+
+SDI_D9_excl <- SDI_df %>% filter(sample_name == "D9" & isoform == "exclusion")
+SDI_D9_incl <- SDI_df %>% filter(sample_name == "D9" & isoform == "inclusion")
+SDI_D14_excl <- SDI_df %>% filter(sample_name == "D14" & isoform == "exclusion")
+SDI_D14_incl <- SDI_df %>% filter(sample_name == "D14" & isoform == "inclusion")
+
+print(paste("D9 inclusion vs. exclusion", wilcox.test(SDI_D9_excl$Evenness, SDI_D9_incl$Evenness)[[3]], sep=": "))
+print(paste("D14 inclusion vs. exclusion", wilcox.test(SDI_D14_excl$Evenness, SDI_D14_incl$Evenness)[[3]], sep=": "))
+
+
+```
+
+
+# Intron groups for MXEs
+
+
+```{r}
+
+# Get significant events
+MXE_sig_coord_sub <- MXE_sig %>% filter(comparison == "D9polyA_vs_D14polyA") %>%
+  unite(MXE_id, c("GeneID","geneSymbol","chr","X1stExonStart_0base","X1stExonEnd","X2ndExonStart_0base","X2ndExonEnd","strand"), sep="_", remove=F)
+
+# Get coordinates of introns
+MXE_sig_coord_sub_int1 <- MXE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","X1stExonStart_0base"="end","strand")) %>%
+  mutate(intron_type = "upstream_intron1") %>% dplyr::select(chr, start, X1stExonStart_0base, MXE_id,intron_type,strand) %>% distinct()
+MXE_sig_coord_sub_int2 <- MXE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","X1stExonEnd"="start","strand")) %>%
+  mutate(intron_type = "downstream_intron1") %>% dplyr::select(chr, X1stExonEnd, end, MXE_id,intron_type,strand) %>% distinct()
+MXE_sig_coord_sub_int3 <- MXE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","X2ndExonStart_0base"="end","strand")) %>%
+  mutate(intron_type = "upstream_intron2") %>% dplyr::select(chr, start, X2ndExonStart_0base, MXE_id,intron_type,strand) %>% distinct()
+MXE_sig_coord_sub_int4 <- MXE_sig_coord_sub %>% inner_join(intron_df, by=c("chr"="chrom","X2ndExonEnd"="start","strand")) %>%
+  mutate(intron_type = "downstream_intron2") %>% dplyr::select(chr, X2ndExonEnd, end, MXE_id,intron_type,strand) %>% distinct()
+
+colnames(MXE_sig_coord_sub_int1) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(MXE_sig_coord_sub_int2) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(MXE_sig_coord_sub_int3) <- c("chrom","start","end","event_name","event_type","strand")
+colnames(MXE_sig_coord_sub_int4) <- c("chrom","start","end","event_name","event_type","strand")
+
+# Put all introns together
+MXE_sig_coord_sub_bed <- rbind(MXE_sig_coord_sub_int1, MXE_sig_coord_sub_int2, MXE_sig_coord_sub_int3,MXE_sig_coord_sub_int4) %>%
+  arrange(chrom, start, end) %>% inner_join(intron_df, by=c("chrom","start","end","strand")) %>% 
+  separate(intron_name, c("gene","intron","count"), sep="_", extra="drop")
+
+
+```
+
+```{r}
+
+intron_df_bis <- intron_df %>% separate(intron_name, c("gene","intron","count"), sep="_", extra="drop")
+  
+# Identify "true" MXEs (same upstream and downstream introns, but different middle introns that share the same start or the same end)
+MXE_sig_coord_sub_bed2 <- MXE_sig_coord_sub_bed %>% arrange(chrom, start, end, count) %>% 
+  distinct(event_name, event_type, gene, .keep_all = T) %>% dplyr::select(-intron, -score, -chrom, -start, -end, -strand) %>%
+  spread(event_type, count) %>%
+  mutate(flag = case_when(is.na(downstream_intron1) & is.na(upstream_intron1) & !is.na(downstream_intron2) & !is.na(upstream_intron2) ~ "true_MXE",
+                          !is.na(downstream_intron1) & !is.na(upstream_intron1) & is.na(downstream_intron2) & is.na(upstream_intron2) ~ "true_MXE",
+                          TRUE ~ "other")) %>% filter(flag == "true_MXE") %>%
+  mutate(flanking1 = case_when(!is.na(upstream_intron1) ~ as.numeric(upstream_intron1) - 1,
+                                      !is.na(upstream_intron2) ~ as.numeric(upstream_intron2) - 1),
+         flanking2 = case_when(!is.na(downstream_intron1) ~ as.numeric(downstream_intron1) + 1,
+                                      !is.na(downstream_intron2) ~ as.numeric(downstream_intron2) + 1)) %>%
+  gather(event_type, count, c("downstream_intron1","downstream_intron2","upstream_intron1","upstream_intron2","flanking1","flanking2")) %>%
+  drop_na() %>% filter(count >= 0) %>%
+  inner_join(intron_df_bis, by=c("gene", "count")) %>%
+  arrange(chrom, start, end, count) %>% distinct(event_name, event_type, gene, .keep_all = T) %>%
+  unite(coord, c("chrom","start","end","strand"), sep="_") %>% dplyr::select(-intron, -score, -count, -flag) %>%
+  separate(event_type, c("position"), sep="_", extra="drop") 
+
+MXE_transcripts <- MXE_sig_coord_sub_bed2 %>%
+  spread(position, coord) %>% 
+  distinct(event_name, downstream, upstream, .keep_all = T) %>%
+  dplyr::select(gene) %>% distinct()
+
+MXE_sig_coord_sub_bed_final <- MXE_sig_coord_sub_bed2 %>% 
+  separate(coord, c("chrom","start","end","strand"), sep="_", convert=T) %>%
+  filter(gene %in% MXE_transcripts$gene) %>% inner_join(intron_df_bis, by=c("chrom","start","end","strand","gene")) %>%
+  dplyr::select(chrom, start, end, gene, count, strand) %>% distinct() %>% arrange(chrom, start, end)
+
+# Write intron groups to file for use on cluster
+write.table(MXE_sig_coord_sub_bed_final, "/path/to/MN_MXE_introns_Day9_vs_D14_polyA.bed", sep="\t", col.names=F, row.names=F, quote=F)
+
+```
+
+
+
+## MXE splicing order
+
+```{r}
+
+# Load splicing orders
+D9_mxe_paths <- read.table("/path/to/MN_D9_chrRNA_merged_chromatin_splicing_paths_MXE_introns.reps_merged.no_unspliced_filter.txt", sep="\t", header=T, stringsAsFactors = F)
+D14_mxe_paths <- read.table("/path/to/MN_D14_chrRNA_merged_chromatin_splicing_paths_MXE_introns.reps_merged.no_unspliced_filter.txt", sep="\t", header=T, stringsAsFactors = F)
+
+D9_mxe_paths$sample_name <- "D9"
+D14_mxe_paths$sample_name <- "D14"
+
+MXE_paths <- rbind(D9_mxe_paths, D14_mxe_paths)
+MXE_paths$sample_name <- factor(MXE_paths$sample_name, levels=c("D9","D14"))
+  
+```
+
+
+```{r}
+
+MXE_paths %>% 
+  filter(gene_name == "PKM" & analyzed_introns == "9_8_7" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of excised introns") + ylab("new intron excised") + facet_grid(sample_name~gene) +
+  ggtitle("PKM") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS6_PKM_splicing_order_paths.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+MXE_paths %>% 
+  filter(gene_name == "ACTN4" & analyzed_introns == "17_18_19" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of excised introns") + ylab("new intron excised") + facet_wrap(sample_name~gene, scales="free_y") +
+  ggtitle("ACTN4") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS6_ACTN4_splicing_order_paths.pdf",
+       width =5.5,
+    height = 2,
+    units = c("in"))
+
+
+
+
+```
+
+
+```{r}
+
+MXE_paths %>% 
+  filter(gene_name == "MEAF6" & analyzed_introns == "6_5" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of excised introns") + ylab("new intron excised") + facet_wrap(sample_name~gene) +
+  ggtitle("MEAF6") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS6_MEAF6_splicing_order_paths.pdf",
+       width = 4,
+    height = 2.25,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+MXE_paths %>% filter(level > 0) %>%
+  filter((gene == "ENST00000368678.8" & analyzed_introns == "8_7") | (gene == "ENST00000354650.7" & analyzed_introns == "9_8")) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of excised introns") + ylab("new intron excised") + facet_wrap(sample_name~gene, scales="free_y") +
+  ggtitle("FYN") + theme(legend.position="none")
+
+ggsave("/path/to/plots/FigS6_FYN_splicing_order_paths.pdf",
+       width =5.5,
+    height = 2,
+    units = c("in"))
+
+
+
+```
+
+
+
+## Myoblasts splicing order
+
+```{r}
+
+rep1_path_df <- read.table("/path/to/myoblasts_rep1_PCR_all_samples_splicing_paths.noSE.txt", sep="\t", header=T)
+rep1_path_df$replicate <- "rep1"
+
+rep2_path_df <- read.table("/path/to/myoblasts_rep2_PCR_all_samples_splicing_paths.noSE.txt", sep="\t", header=T)
+rep2_path_df <- rep2_path_df %>% separate(timepoint, c("timepoint","replicate"), sep="_") %>% filter(replicate == "rep1") ## we had technical replicates in this experiment and are only using rep1 since they all look identical
+rep2_path_df$replicate <- "rep2"
+
+path_df <- rbind(rep1_path_df, rep2_path_df)
+path_df$gene <- factor(path_df$gene, levels=c("ENST00000378292.9","ENST00000329305.6"))
+
+```
+
+
+
+
+```{r}
+
+# Plot proportions of reads mapping to each TPM2 isoforms
+
+iso_counts <- path_df %>% dplyr::select(timepoint, replicate, gene, pattern2, count_pattern2) %>% distinct() %>% filter(!grepl("NO", pattern2)) %>%
+  group_by(timepoint, replicate) %>% mutate(freq = count_pattern2 / sum(count_pattern2))
+
+iso_counts_avg <- iso_counts %>% group_by(gene, timepoint) %>% summarise(avg = mean(freq))
+
+iso_counts_avg %>%
+  ggplot(aes(x=timepoint, y=avg, fill=gene)) + geom_bar(stat="identity", position="dodge") + theme_bw() + scale_fill_viridis(discrete=T) +
+  geom_point(data=iso_counts, aes(x=timepoint, y=freq, group=gene), position = position_dodge(width = 0.9), size=1)
+
+ggsave("/path/to/plots/myoblast_isoform_proportions.pdf",
+       width = 3.5,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# TPM2 splicing order
+
+path_df %>% filter(level > 0 & rank <= 10) %>% filter(replicate == "rep2") %>%
+  unite(id, c("gene","timepoint"), sep=",", remove=F) %>%
+  filter(id != "ENST00000378292.9,D4") %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("TPM2") + facet_wrap(timepoint~gene, ncol=3)
+
+ggsave("/path/to/plots/myoblast_TPM2_paths.pdf",
+       width = 6,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+
+

@@ -1,0 +1,953 @@
+---
+title: "Fig1_and_FigS1_splicing_order_paper"
+author: "Karine Choquet"
+date: '2022-04-20'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+knitr::opts_chunk$set(message = FALSE,        # Hide messages/warnings/errors from loading packages
+                      warning = FALSE,
+                      error = FALSE,
+                      cache = TRUE)           # By default, cache results to avoid re-running
+                                              # super long things every time you knit
+                      
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+library(mosaic)
+library(biomaRt)
+library(gplots)
+library(ggbeeswarm)
+library(ComplexUpset)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+getPalette <-  colorRampPalette(brewer.pal(9, "Spectral"))
+cbPalette <- getPalette(12)
+
+getPalette1 <- colorRampPalette(brewer.pal(8, "Dark2"))
+getPalette2 <- colorRampPalette(brewer.pal(8, "Set2"))
+cbPalette_long <- c(getPalette1(8), getPalette2(8))
+
+
+```
+
+
+
+
+## Figure 1B
+
+```{r}
+
+# Load samples containing the splicing status for each read
+
+splice_df_wc_1 <- read.table('/path/to/total_rep1_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_wc_2 <- read.table('/path/to/total_rep2_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_chr_1a <- read.table('/path/to/chr_rep1_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_chr_1b <- read.table('/path/to/chr_rep2_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_chr_2a <- read.table('/path/to/chr_rep3_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_chr_2b <- read.table('/path/to/chr_rep4_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_cyto_1 <- read.table('/path/to/cyto_rep1_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_cyto_2 <- read.table('/path/to/cyto_rep2_splicing_status_per_read.txt', sep="\t", header=T)
+splice_df_nanoCOP <- read.table('/path/to/K562_all_nanoCOP_splicing_status_per_read.txt', sep="\t", header=T)
+
+
+splice_df_wc_1$sample_name <- "whole_cell"
+splice_df_wc_2$sample_name <- "whole_cell"
+splice_df_chr_1a$sample_name <- "chromatin"
+splice_df_chr_1b$sample_name <- "chromatin"
+splice_df_chr_2a$sample_name <- "chromatin"
+splice_df_chr_2b$sample_name <- "chromatin"
+splice_df_cyto_2$sample_name <- "cytoplasm"
+splice_df_cyto_2$sample_name <- "cytoplasm"
+splice_df_nanoCOP$sample_name <- "nano-COP"
+
+splice_df_wc_1$rep <- "rep1"
+splice_df_wc_2$rep <- "rep2"
+splice_df_chr_1a$rep <- "rep1"
+splice_df_chr_1b$rep <- "rep1"
+splice_df_chr_2a$rep <- "rep2"
+splice_df_chr_2b$rep <- "rep2"
+splice_df_cyto_1$rep <- "rep1"
+splice_df_cyto_2b$rep <- "rep2"
+
+# Concatenate all samples
+splice_df <- rbind(splice_df_wc_1, splice_df_wc_2, splice_df_chr_1a, splice_df_chr_1b, splice_df_chr_2a, splice_df_chr_2b,
+                  splice_df_cyto_1, splice_df_cyto_2)
+splice_df$splicing_status <- factor(splice_df$splicing_status, levels=c("all_spliced", "intermediate", "all_unspliced"))
+splice_df$sample_name <- factor(splice_df$sample_name, c("nano-COP", "chromatin", "cytoplasm", "whole_cell"))
+
+
+
+```
+
+
+```{r}
+
+# number of reads spanning two introns
+
+print(paste("total reads spanning two introns:", nrow(splice_df %>% filter(sample_name == "chromatin") %>% dplyr::select(read) %>% distinct())))
+
+print(paste("total intermediate reads:", nrow(splice_df %>% filter(sample_name == "chromatin" & splicing_status == "intermediate") %>% dplyr::select(read) %>% distinct())))
+
+```
+
+
+
+
+```{r}
+
+# separate by rep
+all_rep1 <- splice_df %>% filter(rep=='rep1')
+all_rep2 <- splice_df %>% filter(rep=='rep2')
+
+
+# calculate proportions, rep1
+test1 <- all_rep1 %>% group_by(sample_name, splicing_status) %>% summarise(reads=n())
+test1_tot <- test1 %>% group_by(sample_name) %>% summarise(total_reads=sum(reads))
+test_rep1 <- inner_join(test1, test1_tot, by='sample_name')
+test_rep1$prop <- test_rep1$reads / test_rep1$total_reads
+test_rep1 <- test_rep1 %>% unite("sample2", c(sample_name, splicing_status), remove=F)
+
+# calculate proportions, rep2
+test2 <- all_rep2 %>% group_by(sample_name, splicing_status) %>% summarise(reads=n())
+test2_tot <- test2 %>% group_by(sample_name) %>% summarise(total_reads=sum(reads))
+test_rep2 <- inner_join(test2, test2_tot, by='sample_name')
+test_rep2$prop <- test_rep2$reads / test_rep2$total_reads
+test_rep2 <- test_rep2 %>% unite("sample2", c(sample_name, splicing_status), remove=F)
+
+test_rep2 <- test_rep2 %>% ungroup() %>% dplyr::select(sample2, prop)
+
+# cat reps
+test_both_reps <- inner_join(test_rep1, test_rep2, by='sample2')
+
+# calculate standard dev. and standard error
+test_both_reps$mean <- (test_both_reps$prop.x + test_both_reps$prop.y)/2
+test_both_reps$sd <- apply(test_both_reps[,c(6,7)], 1, sd)
+test_both_reps$std_err <- test_both_reps$sd/sqrt(2)
+
+# set order of splicing status label (for some reason I couldn't get factors to work here)
+order1 <- data.frame(c("all_unspliced","intermediate","all_spliced"), c(1,2,3))
+colnames(order1) <- c("splicing_status", "num_order")
+test_both_reps <- inner_join(test_both_reps, order1, by='splicing_status')
+
+##### this is a key step: you need to calculate cumulative sum to set correct error bar height
+# arrange by splicing status order set directly above, and calculate cumulative sum
+test_both_reps <- test_both_reps %>% group_by(sample_name) %>% arrange(num_order, .by_group = TRUE) %>% mutate(cumsum=cumsum(mean))
+
+```
+
+
+```{r}
+
+test_both_reps$splicing_status <- factor(test_both_reps$splicing_status, levels=c("all_spliced","intermediate","all_unspliced"))
+
+test_both_reps_piv <- test_both_reps %>% dplyr::select(sample_name, splicing_status, num_order, prop.x, prop.y) %>%
+  gather(rep, value, c("prop.x","prop.y")) %>% group_by(sample_name, rep) %>% arrange(num_order, .by_group = TRUE) %>% mutate(cumsum=cumsum(value))
+
+# plot
+ggplot(test_both_reps, aes(x=sample_name, y=mean, fill=splicing_status)) +
+  geom_bar(stat='identity', position='fill', color='black', lwd=0.2) +
+  geom_point(data=test_both_reps_piv, aes(x=sample_name, y=cumsum), size=2) +
+  #geom_errorbar(aes(y=cumsum, ymin=cumsum-std_err, ymax=cumsum+std_err), position='identity', width=0.2, lwd=0.2) +
+  theme_bw() + scale_fill_manual(values=cbPalette_long) + ylab("proportion of reads")
+
+ggsave("/path/to/Fig1_read_splicing_status_stacked_bar_plot_with_error_bars.pdf",
+       width = 5,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+
+## Read ends analysis
+
+
+```{r}
+
+# Load read end features from nano-COP samples from Drexler et al. 2020
+pA_read_ends <- read.table("/path/to/K562_read_end_stats.txt", sep="\t", header=T)
+rep5a_read_ends <- read.table("/path/to/rep5a_read_end_stats.txt", sep="\t", header=T)
+rep4_read_ends <- read.table("/path/to/rep4_read_end_stats.txt", sep="\t", header=T)
+rep5b_read_ends <- read.table("/path/to/rep5b_read_end_stats.txt", sep="\t", header=T)
+
+
+nanoCOP_read_ends <- rbind(pA_read_ends, rep5a_read_ends, rep4_read_ends, rep5b_read_ends)
+
+
+read_ends_splice_status <- inner_join(splice_df_nanoCOP, nanoCOP_read_ends, by="read")
+read_ends_splice_status$splicing_status <- factor(read_ends_splice_status$splicing_status, c("all_spliced","intermediate","all_unspliced"))
+
+
+```
+
+
+```{r}
+
+read_ends_splice_status_counts <- read_ends_splice_status %>% dplyr::select(-gene) %>% distinct() %>% filter(end_feature %!in% c("undetermined", "intron_SS")) %>%
+  mutate(end_feature = replace(end_feature, end_feature == "RNAPET", "polyA")) %>%
+  group_by(splicing_status, end_feature) %>% summarise(n_reads = n())
+
+read_ends_splice_status_counts$end_feature <- factor(read_ends_splice_status_counts$end_feature, c("intron","exon","splice_site","polyA","post_polyA"))
+
+read_ends_splice_status_counts %>%
+  ggplot(aes(x=splicing_status, y=n_reads, fill=end_feature)) + geom_bar(stat="identity", position="fill") + theme_bw() + 
+  scale_fill_manual(values=c(cbPalette_long[5:7],cbPalette_long[4],cbPalette_long[8]))
+
+ggsave("/path/to/FigS1_read_end_splicing_status_nano-COP_stacked_bar_plot.pdf",
+       width = 5,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+
+
+
+## Quantification of post-txn splicing
+
+```{r}
+
+# Get per intron splicing info
+chr_splice_info_rep1 <- read.table("/path/to/K562_chr_repA_hg38_splicing_info_per_intron.withSKP.RefSeq.txt", sep="\t", header=T)
+chr_splice_info_rep2 <- read.table("/path/to/K562_chr_repB_hg38_splicing_info_per_intron.withSKP.RefSeq.txt", sep="\t", header=T)
+
+chr_splice_info_rep1$sample_name <- "chromatin_rep1"
+chr_splice_info_rep2$sample_name <- "chromatin_rep2"
+
+chr_splice_info <- rbind(chr_splice_info_rep1,chr_splice_info_rep2)
+
+# Change nomenclature of chromosomes
+chr_splice_info$chrom <- paste("chr", chr_splice_info$chrom, sep="")
+
+# Load intron annotations
+intron_df <- read.table("/path/to/annotation_files/hg38_all_intron_features.txt", sep="\t", header=T)
+
+# Merge intron splicing status and intron annotations
+fields <- c("chrom","start","end", "strand","gene","intron_order", "intron_total", "intron_pos")
+chr_splice_info <- chr_splice_info %>% inner_join(intron_df[fields], by=c("chrom","intron_start"="start","intron_end"="end","strand","gene_name"="gene"))
+
+# Concatenate dataframes with read splicing status
+splice_df_chr <- rbind(splice_df_chr_1a, splice_df_chr_1b, splice_df_chr_2a, splice_df_chr_2b) %>%
+  unite(sample_name, c("sample_name", "rep"), sep="_")
+
+
+
+```
+
+```{r}
+
+# Measure the total number of introns within partially spliced reads
+
+all_introns_quantif <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name")) %>%
+  filter(splicing_status == "intermediate" & (splice_status == "NO" | splice_status == "YES")) %>%
+  dplyr::select(read_name, sample_name, chrom, intron_start, intron_end, strand, intron_order) %>% distinct() %>%
+  filter(intron_order != "single") %>%
+  group_by(sample_name, read_name, intron_order) %>% summarise(n=n()) %>% mutate(flag = "TRUE") %>%
+  spread(intron_order, flag)
+
+all_introns_quantif[is.na(all_introns_quantif)] <- "FALSE"
+
+```
+
+```{r}
+
+# Measure the number of unspliced introns within partially spliced reads
+
+post_txn_quantif <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name")) %>% filter(splicing_status == "intermediate" & splice_status == "NO") %>%
+  dplyr::select(sample_name, read_name, chrom, intron_start, intron_end, strand, intron_order) %>% distinct() %>%
+  filter(intron_order != "single") %>%
+  group_by(sample_name, read_name, intron_order) %>% summarise(n=n()) %>% mutate(flag = "TRUE") %>%
+  spread(intron_order, flag)
+
+post_txn_quantif[is.na(post_txn_quantif)] <- "FALSE"
+
+```
+
+
+
+```{r}
+
+# Categorize introns
+
+post_txn_quantif$category <- "unspliced_introns"
+all_introns_quantif$category <- "all_introns"
+
+interm_introns_quantif <- rbind(all_introns_quantif, post_txn_quantif) %>%
+  filter(middle == "TRUE" | (middle == "FALSE" & last == "FALSE") | (middle == "FALSE" & first == "FALSE")) # exclude cases where only the first and last intron are covered, since those are likely to have a lot of skipping in between
+
+interm_introns_quantif$category <- factor(interm_introns_quantif$category, levels=c("unspliced_introns", "all_introns"))
+
+```
+
+
+
+```{r}
+
+# Make upset plot
+
+upset(
+      interm_introns_quantif, c("first", "last", "middle"), name='intron', set_sizes = F,
+      base_annotations=list(
+          'Intersection size'=upset_annotate(
+             '..count..',
+              list(
+                  geom_bar(
+                      aes(colour=sample_name, fill=category),
+                      position="dodge"
+                  ), scale_colour_manual(values=c("#000000","#999999")),
+                  scale_fill_manual(values=c(cbPalette_long[6],cbPalette_long[7])),
+                  ylab("number of reads")
+              )
+          )
+      )
+  )
+
+ggsave("/path/to/FigS1_post-txn_splicing_intron_position.pdf",
+       width = 5,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+
+## Number of post-txn excised introns per read
+
+```{r}
+
+# Count number of unspliced introns per read
+
+counts_unspliced <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name")) %>% 
+  filter(splicing_status == "intermediate" & splice_status == "NO") %>%
+  dplyr::select(read_name, chrom, intron_start, intron_end, strand) %>% distinct() %>%
+  group_by(read_name) %>% summarise(unspliced_introns=n())
+
+# Count total number of introns per read
+counts_all <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name")) %>% 
+  filter(splicing_status == "intermediate" & (splice_status == "NO" | splice_status == "YES")) %>%
+  dplyr::select(read_name, chrom, intron_start, intron_end, strand) %>% distinct() %>%
+  group_by(read_name) %>% summarise(total_introns=n())
+
+inner_join(counts_unspliced, counts_all, by="read_name") %>% filter(total_introns > 1) %>%
+  group_by(unspliced_introns, total_introns) %>% summarise(n_reads = n()/1000) %>%
+  ggplot(aes(x=total_introns, y=unspliced_introns, size=n_reads, color=log10(n_reads))) + geom_point() + theme_bw() + xlim(0,20) + ylim(0,20) +
+  scale_color_viridis()
+
+
+ggsave("/path/to/Fig1_Post-txn_splicing_unspliced_introns_vs_total_introns_with_colors.pdf",
+       width = 5,
+    height = 4,
+    units = c("in"))
+
+
+
+```
+
+
+
+```{r}
+
+inner_join(counts_unspliced, counts_all, by="read_name") %>% filter(total_introns > 1) %>%
+  group_by(unspliced_introns, total_introns) %>% summarise(n_reads = n()) %>% filter(total_introns == 2 & unspliced_introns == 1)
+
+```
+
+
+
+```{r}
+
+inner_join(counts_unspliced, counts_all, by="read_name") %>% filter(total_introns > 1) %>%
+  group_by(unspliced_introns) %>% summarise(n_reads = n()) %>% mutate(freq=n_reads/sum(n_reads)*100)
+
+```
+
+
+
+## Distribution of fraction unspliced per intron
+
+```{r}
+
+intron_read_counts <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name","gene_name"="gene")) %>% filter(splice_status %in% c("YES","NO")) %>%
+  dplyr::select(read_name, chrom, intron_start, intron_end, strand, splice_status) %>% distinct() %>%
+  group_by(chrom, intron_start, intron_end, strand, splice_status) %>% summarise(n_reads = n()) %>%
+  spread(splice_status, n_reads) %>% mutate(fraction_NO = NO / (YES+NO)) %>% filter(YES+NO >= 20)
+
+
+intron_read_counts %>%
+  ggplot(aes(x=fraction_NO)) + stat_ecdf(geom="step") + theme_bw() + xlab("fraction unspliced") + ylab("fraction of introns") +
+  geom_vline(xintercept=0.1, linetype="dotted")
+
+ggsave("/path/to/Fig1_CDF_fraction_unspliced_per_intron.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+nrow(intron_read_counts %>% filter(fraction_NO >= 0.1)) / nrow(intron_read_counts)
+
+```
+
+
+
+## Correlation in percent unspliced per replicate
+
+```{r}
+
+intron_read_counts_per_rep <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name","gene_name"="gene")) %>% 
+  filter(splice_status %in% c("YES","NO")) %>%
+  dplyr::select(sample_name, read_name, chrom, intron_start, intron_end, strand, splice_status) %>% distinct() %>%
+  group_by(sample_name, chrom, intron_start, intron_end, strand, splice_status) %>% summarise(n_reads = n()) %>%
+  spread(splice_status, n_reads) %>% mutate(fraction_NO = NO / (YES+NO)) %>% filter(YES+NO >= 20) %>%
+  dplyr::select(-NO, -YES) %>% spread(sample_name, fraction_NO)
+
+
+intron_read_counts_per_rep %>% 
+  ggplot(aes(x=chromatin_rep1, y=chromatin_rep2)) + geom_point(size=0.2, alpha=0.2) + theme_bw() + ggtitle("fraction unspliced per intron") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red")
+
+
+ggsave("/path/to/FigS1_correlation_percent_unspliced_per_rep.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+cor.test(intron_read_counts_per_rep$chromatin_rep1, intron_read_counts_per_rep$chromatin_rep2, method="pearson")
+
+```
+
+
+## Distribution of post-txn spliced introns per gene
+
+```{r}
+# Get gene names annotations
+
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name","gene_id")
+
+```
+
+
+
+```{r}
+
+# Number of genes with at least one post-txn intron
+
+intron_read_counts_bis <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_name"="read","sample_name")) %>% filter(splice_status %in% c("YES","NO")) %>%
+  group_by(chrom, intron_start, intron_end, strand, gene_name, splice_status) %>% summarise(n_reads = n()) %>%
+  spread(splice_status, n_reads) %>% mutate(fraction_NO = NO / (YES+NO)) %>% filter(YES+NO >= 20)
+
+```
+
+
+```{r}
+
+post_txn_genes_by_intron <- intron_read_counts_bis %>% filter(fraction_NO >= 0.1) %>% group_by(gene_name) %>% summarise(n = n())
+
+post_txn_genes_by_intron_with_total <- post_txn_genes_by_intron %>% right_join(total_gene_counts, by=c("gene_name"="gene")) %>% filter(total_reads >= 20)
+
+
+post_txn_genes_by_intron_with_total[is.na(post_txn_genes_by_intron_with_total)] <- 0
+
+post_txn_genes_by_intron_with_total %>%
+  ggplot(aes(x=n)) + stat_ecdf(geom="step") + theme_bw() + xlab("number of post-txn spliced introns") + ylab("fraction of transcripts")
+
+ggsave("/path/to/Fig1_CDF_post_txn_introns_per_gene.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# Genes analyzed relative to K562 transcriptome
+
+# Load exonic RPKMs per gene from short-read total RNA-seq from Drexler et al. 2020
+hg38_tot1_featureCounts_df = read.table('path/to/tot_1_featureCount.txt', sep="\t", header=T)
+hg38_tot2_featureCounts_df = read.table('/path/to/tot_2_featureCount.txt', sep="\t", header=T)
+
+fields <- c("gene","exon_RPKM")
+
+# Filter for RPKM > 1 in both replicates
+K562_exon_expr <- inner_join(hg38_tot1_featureCounts_df[,fields], hg38_tot2_featureCounts_df[,fields], by="gene") %>%
+  separate(gene, c("gene_id","id"), sep="\\.", remove=F) %>% inner_join(gene_names_df, by="gene_id") %>%
+  filter(exon_RPKM.x >= 1 & exon_RPKM.y >= 1)
+
+# List of expressed genes
+K562_exon_expr_by_gene <- K562_exon_expr %>% dplyr::select(gene_name) %>% distinct()
+
+post_txn_by_transcript <- post_txn_genes_by_intron_with_total %>% inner_join(K562_exon_expr, by=c("gene_name"="gene"))
+
+post_txn_by_gene <- post_txn_genes_by_intron_with_total %>% inner_join(K562_exon_expr, by=c("gene_name"="gene")) %>%
+  separate(gene_name, c("gene_id","id"), sep="\\.") %>% inner_join(gene_names_df, by="gene_id") %>%
+  dplyr::select(gene_name) %>% distinct()
+
+print(paste("number of transcripts analyzed:", nrow(post_txn_by_transcript)))
+print(paste("number of transcripts expressed in K562 cells:", nrow(K562_exon_expr)))
+
+print(paste("number of genes analyzed:", nrow(post_txn_by_gene)))
+print(paste("number of genes expressed in K562 cells:", nrow(K562_exon_expr_by_gene)))
+
+print(paste("fraction transcripts analyzed:", nrow(post_txn_by_transcript)/nrow(K562_exon_expr)))
+print(paste("fraction genes analyzed:", nrow(post_txn_by_gene)/nrow(K562_exon_expr_by_gene)))
+
+
+```
+
+
+
+## Analysis of EXOSC10 KD
+
+```{r, fig.height=3, fig.width=4}
+
+# qRT-PCR results
+exo_qpcr = read.table("/path/to/qRT-PCR_results_EXOSC10_KD_reps1-2.txt", sep="\t", header=T)
+
+
+exo_qpcr_m <- exo_qpcr %>% gather(gene_name, value, c(3:5))
+exo_qpcr_m$gene_name <- factor(exo_qpcr_m$gene_name, levels=c("EXOSC10","proCNOT2","proPSMC3IP"))
+exo_qpcr_m$shRNA <- factor(exo_qpcr_m$shRNA, levels=c("scrambled", "EXOSC10"))
+
+exo_qpcr_PROMPTs <- exo_qpcr_m %>% filter(gene_name != "EXOSC10") 
+
+exo_qpcr_PROMPTs %>% group_by(shRNA, gene_name) %>% summarise(avg_value = mean(value)) %>%
+  ggplot(aes(x=shRNA, y=avg_value, fill=shRNA)) + geom_bar(stat="identity") + facet_wrap(~gene_name, scales="free_y") +
+  geom_point(data=exo_qpcr_PROMPTs, aes(x=shRNA, y=value)) + 
+  theme_bw() + scale_fill_manual(values=c("#999999",cbPalette_long[2]))
+
+ggsave("/path/to/FigS1_PROMPTs_qPCR.pdf",
+       width = 6,
+    height = 2.3,
+    units = c("in"))
+  
+
+```
+
+
+```{r}
+
+exo_qpcr_m_EXO_only <- exo_qpcr_m %>% filter(gene_name == "EXOSC10")
+
+exo_qpcr_m %>% group_by(shRNA, gene_name) %>% summarise(avg_value = mean(value)) %>%
+  filter(gene_name == "EXOSC10") %>%
+  ggplot(aes(x=shRNA, y=avg_value, fill=shRNA)) + geom_bar(stat="identity") + 
+  geom_point(data=exo_qpcr_m_EXO_only, aes(x=shRNA, y=value)) + 
+  theme_bw() + scale_fill_manual(values=c("#999999",cbPalette_long[2]))
+
+ggsave("/path/to/FigS1_EXOSC10_only_KD_qPCR.pdf",
+       width = 3,
+    height = 2.3,
+    units = c("in"))
+
+```
+
+
+
+
+```{r}
+
+# Plot results that were computed in python
+
+exo_RI_df <- read.table("path/to/EXOSC10_KD_read_counts_for_intron_groups_in_paths_with_Reps.txt", sep="\t", header=T, stringsAsFactors = F)
+
+exo_RI_df <- exo_RI_df %>% separate(sample_name, c("shRNA", "KD", "replicate"), sep="_", remove=F)
+exo_RI_df$shRNA <- factor(exo_RI_df$shRNA, levels=c("scrambled", "EXOSC10"))
+
+```
+
+```{r}
+
+exo_RI_df %>%
+  ggplot(aes(x=factor(level), y=norm_count, fill=shRNA, color=replicate)) + geom_boxplot(outlier.size = 0.1) + theme_bw() + 
+  facet_wrap(~n_analyzed_introns, scales="free_x", nrow=2) +
+  scale_fill_manual(values=c("#999999",cbPalette_long[2])) + xlab("number of spliced introns in read \n for considered region") +
+  ylab("proportion of reads \n mapping to considered region") + scale_color_manual(values=c("#000000","#3A3B3C"))
+
+ggsave("/path/to/FigS1_EXOSC10_KD_read_counts_comparison.pdf",
+       width = 4,
+    height = 4,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# Count the number of up and down intron groups and intermediate isoforms
+
+exo_stats_df <- read.table("/path/to/TableS2_EXOSC10_KD_pattern_comparison_fishers_exact_test_with_reps.txt", sep="\t", header=T)
+
+exo_stats_df_cat <- exo_stats_df %>%
+  mutate(category = case_when(FDR_rep1 < 0.1 & FDR_rep2 < 0.1 & OR_rep1 > 1 & OR_rep2 > 1 & grepl("NO", pattern) ~ "upregulated",
+                              FDR_rep1 < 0.1 & FDR_rep2 < 0.1 & OR_rep1 < 1 & OR_rep2 < 1 & grepl("NO", pattern) ~ "downregulated",
+                              TRUE ~ "not_significant"))
+
+exo_stats_groups <- exo_stats_df_cat %>% dplyr::select(category, gene_name, gene, analyzed_introns) %>% distinct() %>% 
+  group_by(category) %>%
+  summarise(n=n())
+
+exo_stats_patterns <- exo_stats_df_cat %>% dplyr::select(category, gene_name, gene, analyzed_introns, pattern) %>% distinct() %>% 
+  group_by(category) %>%
+  summarise(n=n())
+
+exo_stats_groups$metric <- "intron_groups"
+exo_stats_patterns$metric <- "intermediate_isoforms"
+
+exo_stats_counts <- rbind(exo_stats_groups, exo_stats_patterns)
+
+exo_stats_counts$category <- factor(exo_stats_counts$category, levels=c("downregulated","upregulated","not_significant"))
+
+exo_stats_counts %>%
+  ggplot(aes(x=metric, y=n, fill=category)) + geom_bar(stat="identity", position="fill") + theme_bw() +
+  scale_fill_manual(values=c(cbPalette_long[9:10],cbPalette_long[16]))
+
+ggsave("/path/to/FigS1_EXOSC10_KD_diff_isos_stacked_bar_plot.pdf",
+       width = 3.5,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+exo_stats_counts %>% group_by(metric) %>% summarise(sum(n))
+
+```
+
+```{r}
+
+exo_stats_counts %>% group_by(metric) %>% mutate(freq=n/sum(n))
+
+```
+
+## Poly(A) tail analysis
+
+```{r}
+
+# Load nanopolish files
+
+nano_chr_1 <- read.table("/path/to/K562_chr_rep1.polyA_estimates.tsv", sep="\t", header=T)
+nano_chr_2 <- read.table("/path/to/K562_chr_rep2.polyA_estimates.tsv", sep="\t", header=T)
+
+nano_chr_1$sample_name <- "chromatin_rep1"
+nano_chr_2$sample_name <- "chromatin_rep2"
+
+nano_chr <- rbind(nano_chr_1, nano_chr_2)
+
+
+```
+
+
+```{r}
+
+# Process yeat spike-ins
+
+# Length of tails used
+tail_assignments <- data.frame(c("ICT1","HIF1","ENO2","YKE4","HMS2","BCD1"), c(10,20,30,60,80,100))
+colnames(tail_assignments) <- c("gene_name", "tail_assignment")
+
+# Filter for "PASS" reads
+nano_SI_reads <- rbind(nano_chr_3, nano_chr_4) %>% filter(grepl("__",contig) & qc_tag == "PASS") %>%
+  separate(contig, c("gene_id", "gene_name"), sep="__") %>% inner_join(tail_assignments, by="gene_name") %>%
+  unite("gene_name2", c("gene_name", "tail_assignment"), sep="_")
+
+nano_SI_reads$gene_name2 <- factor(nano_SI_reads$gene_name2, levels=c("ICT1_10","HIF1_20","ENO2_30","YKE4_60","HMS2_80","BCD1_100"))
+
+# Calculate tail length size factor per sample
+SF <- nano_SI_reads %>% group_by(sample_name, gene_name2) %>%
+  summarise(median_polya_length = median(polya_length)) %>%
+  spread(sample_name, median_polya_length) %>%
+  rowwise() %>%
+  mutate(geo_mean = exp(mean(log(c(chromatin_rep1,chromatin_rep2))))) %>%
+  gather(sample_name, polya_length, c("chromatin_rep1","chromatin_rep2")) %>%
+  mutate(ratio = polya_length / geo_mean) %>%
+  group_by(sample_name) %>%
+  summarise(size_factor = median(ratio))
+
+SF
+
+
+```
+
+
+```{r}
+
+# Normalize tail length
+
+nano_filt_norm_SI <- nano_chr %>% inner_join(SF, by=c("sample_name")) %>%
+  mutate(norm_polya_length = polya_length / size_factor)
+
+```
+
+
+```{r}
+
+# Get splicing info that was pre-processed in python
+
+splice_df <- read.table("/path/to/K562_splicing_status_per_read_intron_groups.txt", sep="\t", header=T)
+
+```
+
+
+```{r}
+
+# Get splicing level (number of excised introns in intron group)
+
+get_level <- function(splice_status){
+  
+  split_splice = unlist(strsplit(splice_status, "_"))
+  my_level = sum(split_splice == "YES")
+  
+  return(my_level)
+  
+}
+
+```
+
+
+```{r}
+
+# Merge tail length with splicing info
+
+splice_nano_df <- inner_join(splice_df, nano_filt_norm_SI, by=c("readname")) %>% rowwise() %>%
+  mutate(level = get_level(splice_status))
+
+```
+
+
+```{r}
+
+# Plot splicing info vs. tail length
+
+splice_nano_df %>% filter(grepl("NO", splice_status)) %>%
+  ggplot(aes(x=factor(n_analyzed_introns), y=polya_length, fill=factor(level))) + geom_boxplot(outlier.size=0.2) + theme_bw() +
+  scale_fill_manual(values=cbPalette_long) + xlab("number of analyzed_introns") + ylab("poly(A) tail length (nt)")
+
+ggsave("/path/to/Fig1_splicing_order_vs_tail_length.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# Stats
+
+splice_df_nano_interm <- splice_nano_df %>% filter(grepl("NO", splice_status))
+  
+triplets <- splice_df_nano_interm %>% filter(n_analyzed_introns == 3)
+quads <- splice_df_nano_interm %>% filter(n_analyzed_introns == 4)
+
+
+triplet_level1 <- filter(triplets, level == 0)
+triplet_level2 <- filter(triplets, level == 1)
+triplet_level3 <- filter(triplets, level == 2)
+
+quad_level1 <- filter(quads, level == 0)
+quad_level2 <- filter(quads, level == 1)
+quad_level3 <- filter(quads, level == 2)
+quad_level4 <- filter(quads, level == 3)
+
+
+print("polya_length triplets")
+print(paste("level 1st vs. level 2nd", wilcox.test(triplet_level1$polya_length, triplet_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(triplet_level1$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(triplet_level2$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+
+print("polya_length quads")
+print(paste("level 1st vs. level 2nd", wilcox.test(quad_level1$polya_length, quad_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(quad_level1$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 4th", wilcox.test(quad_level1$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(quad_level2$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 4th", wilcox.test(quad_level2$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 3rd vs. level 4th", wilcox.test(quad_level3$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+
+
+```
+
+
+
+
+```{r}
+
+# Plot median tail length
+
+splice_nano_df %>% filter(grepl("NO", splice_status)) %>%
+  group_by(gene, n_analyzed_introns, level) %>% summarise(polya_length = median(polya_length)) %>%
+  ggplot(aes(x=factor(n_analyzed_introns), y=polya_length, fill=factor(level))) + geom_boxplot(outlier.size=0.2) + theme_bw() +
+  scale_fill_manual(values=cbPalette_long) + xlab("number of analyzed_introns") + ylab("poly(A) tail length (nt)")
+
+ggsave("/path/to/FigS1_splicing_order_vs_tail_length_median.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+# Stats
+
+splice_df_nano_interm <- splice_nano_df %>% filter(grepl("NO", splice_status)) %>%
+  group_by(gene, n_analyzed_introns, level) %>% summarise(polya_length = median(polya_length))
+  
+triplets <- splice_df_nano_interm %>% filter(n_analyzed_introns == 3)
+quads <- splice_df_nano_interm %>% filter(n_analyzed_introns == 4)
+
+
+triplet_level1 <- filter(triplets, level == 0)
+triplet_level2 <- filter(triplets, level == 1)
+triplet_level3 <- filter(triplets, level == 2)
+
+quad_level1 <- filter(quads, level == 0)
+quad_level2 <- filter(quads, level == 1)
+quad_level3 <- filter(quads, level == 2)
+quad_level4 <- filter(quads, level == 3)
+
+
+print("polya_length triplets")
+print(paste("level 1st vs. level 2nd", wilcox.test(triplet_level1$polya_length, triplet_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(triplet_level1$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(triplet_level2$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+
+print("polya_length quads")
+print(paste("level 1st vs. level 2nd", wilcox.test(quad_level1$polya_length, quad_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(quad_level1$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 4th", wilcox.test(quad_level1$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(quad_level2$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 4th", wilcox.test(quad_level2$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 3rd vs. level 4th", wilcox.test(quad_level3$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+
+
+```
+
+```{r}
+
+# Plot specific genes
+
+splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_005804.3" & analyzed_introns == "8_7_6") %>% 
+  ggplot(aes(x=factor(level), y=polya_length, color=factor(level))) + 
+  geom_quasirandom(cex=0.05, dodge.width=.8) + geom_boxplot(outlier.shape = NA, color="black") + theme_bw() + ggtitle("DDX39A") +
+  scale_color_manual(values=cbPalette_long) + xlab("number of spliced introns") + ylab("poly(A) tail length (nt)")
+
+ggsave("/path/to/Fig1_splicing_order_vs_tail_length_DDX39A.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+triplets <- splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_005804.3" & analyzed_introns == "8_7_6")
+
+triplet_level1 <- filter(triplets, level == 0)
+triplet_level2 <- filter(triplets, level == 1)
+triplet_level3 <- filter(triplets, level == 2)
+
+print("polya_length triplets")
+print(paste("level 1st vs. level 2nd", wilcox.test(triplet_level1$polya_length, triplet_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(triplet_level1$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(triplet_level2$polya_length, triplet_level3$polya_length)[[3]], sep=": "))
+
+
+```
+
+
+```{r}
+
+splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_183241.1" & analyzed_introns == "1_2_3_4") %>% 
+  ggplot(aes(x=factor(level), y=polya_length, color=factor(level))) + 
+  geom_quasirandom(cex=0.05, dodge.width=.8) + geom_boxplot(outlier.shape = NA, color="black") + theme_bw() + ggtitle("PAXX") +
+  scale_color_manual(values=cbPalette_long) + xlab("number of spliced introns") + ylab("poly(A) tail length (nt)")
+
+ggsave("/path/to/Fig1_splicing_order_vs_tail_length_PAXX.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+quads <- splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_183241.1" & analyzed_introns == "1_2_3_4")
+
+quad_level1 <- filter(quads, level == 0)
+quad_level2 <- filter(quads, level == 1)
+quad_level3 <- filter(quads, level == 2)
+quad_level4 <- filter(quads, level == 3)
+
+print("polya_length quads")
+print(paste("level 1st vs. level 2nd", wilcox.test(quad_level1$polya_length, quad_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(quad_level1$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 4th", wilcox.test(quad_level1$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(quad_level2$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 4th", wilcox.test(quad_level2$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 3rd vs. level 4th", wilcox.test(quad_level3$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+
+
+```
+
+
+```{r}
+
+splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_001258461.1" & analyzed_introns == "7_6_5_4") %>% 
+  ggplot(aes(x=factor(level), y=polya_length, color=factor(level))) + 
+  geom_quasirandom(cex=0.05, dodge.width=.8) + geom_boxplot(outlier.shape = NA, color="black") + theme_bw() + ggtitle("FASTK") +
+  scale_color_manual(values=cbPalette_long) + xlab("number of spliced introns") + ylab("poly(A) tail length (nt)")
+
+ggsave("/path/to/Fig1_splicing_order_vs_tail_length_FASTK.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+quads <- splice_nano_df %>% filter(grepl("NO", splice_status) & gene == "NM_001258461.1" & analyzed_introns == "7_6_5_4")
+
+quad_level1 <- filter(quads, level == 0)
+quad_level2 <- filter(quads, level == 1)
+quad_level3 <- filter(quads, level == 2)
+quad_level4 <- filter(quads, level == 3)
+
+print("polya_length quads")
+print(paste("level 1st vs. level 2nd", wilcox.test(quad_level1$polya_length, quad_level2$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 3rd", wilcox.test(quad_level1$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 1st vs. level 4th", wilcox.test(quad_level1$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 3rd", wilcox.test(quad_level2$polya_length, quad_level3$polya_length)[[3]], sep=": "))
+print(paste("level 2nd vs. level 4th", wilcox.test(quad_level2$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+print(paste("level 3rd vs. level 4th", wilcox.test(quad_level3$polya_length, quad_level4$polya_length)[[3]], sep=": "))
+
+
+```

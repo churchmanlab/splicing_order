@@ -1,0 +1,1701 @@
+---
+title: "Fig2_and_FigS2-4_splicing_order_paper"
+author: "Karine Choquet"
+date: '2022-04-20'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+knitr::opts_chunk$set(message = FALSE,        # Hide messages/warnings/errors from loading packages
+                      warning = FALSE,
+                      error = FALSE,
+                      cache = TRUE)           # By default, cache results to avoid re-running
+                                              # super long things every time you knit
+                      
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+library(mosaic)
+library(biomaRt)
+library(gplots)
+library(ggbeeswarm)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+getPalette <-  colorRampPalette(brewer.pal(9, "Spectral"))
+cbPalette <- getPalette(12)
+
+getPalette1 <- colorRampPalette(brewer.pal(8, "Dark2"))
+getPalette2 <- colorRampPalette(brewer.pal(8, "Set2"))
+cbPalette_long <- c(getPalette1(8), getPalette2(8))
+cbPalette_extra_long <- c(getPalette1(12), getPalette2(12))
+
+
+```
+
+
+## Splicing order plots
+
+```{r}
+
+K562_paths <- read.table("/path/to/K562_chromatin_splicing_paths_non_consecutive_introns.2mergedReps.RefSeq.max4introns.txt", sep="\t", header=T)
+
+K562_paths_nodup <- read.table("/path/to/TableS3_K562_splicing_order_paths.txt", sep="\t", header=T)
+
+```
+
+
+```{r}
+
+# DDX39A
+
+K562_paths %>% filter(gene == "NM_005804.3" & analyzed_introns == "8_7_6" & sample_name == "chr_rep1" & level > 0) %>% 
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("DDX39A") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/Fig2_DDX39A_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# ACADVL
+
+K562_paths %>% filter(gene == "NM_000018.3" & analyzed_introns == "8_9_10_11" & level > 0 & sample_name == "chr_rep1") %>% 
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("ACADVL") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/Fig2_ACADVL_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# PAXX
+
+K562_paths %>% filter(gene == "NM_183241.1" & analyzed_introns == "1_2_3_4" & level > 0 & sample_name == "chr_rep1") %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("PAXX") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/Fig2_PAXX_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+
+
+```{r}
+
+# FASTK
+
+K562_paths %>% filter(gene == "NM_001258461.1" & analyzed_introns == "7_6_5_4" & level > 0 & sample_name == "chr_rep1") %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("FASTK") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+
+ggsave("/path/to/plots/Fig2_FASTK_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# NOP56
+
+K562_paths %>% filter(gene == "NM_006392.3" & analyzed_introns == "3_5_6_7" & level > 0 & sample_name == "chr_rep1") %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("NOP56") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/FigS2_NOP56_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+# IMP4
+
+K562_paths %>% filter(gene == "NM_001320305.1" & analyzed_introns == "5_6_7" & level > 0 & sample_name == "chr_rep1") %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("IMP4") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/FigS2_IMP4_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# MAT2A
+
+K562_paths %>% filter(gene == "NM_005911.5" & analyzed_introns == "5_6_7_8" & sample_name == "chr_rep1" & level > 0) %>%
+  ggplot(aes(x=factor(level), y=factor(new_intron_spliced))) + geom_line(aes(group=full_path, size=full_path_score, alpha=full_path_score)) + 
+  theme_bw() + xlab("number of spliced introns") + ylab("new intron spliced") + ggtitle("MAT2A") + 
+  guides(color=guide_legend(ncol=2), size=guide_legend(ncol=2), alpha=guide_legend(ncol=2))
+
+ggsave("/path/to/plots/Fig2_MAT2A_splicing_order_plot.pdf",
+       width = 3,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+
+## Plot distribution of splicing order scores
+
+```{r}
+
+K562_paths_nodup %>% filter(rank < 6) %>%
+  ggplot(aes(x=full_path_score, color=factor(rank), fill=factor(rank))) + geom_density(alpha=0.5) + theme_bw() +
+  facet_grid(sample_name~n_analyzed_introns) +
+  scale_color_manual(values=cbPalette_long[9:16]) + scale_fill_manual(values=cbPalette_long[9:16])
+
+
+ggsave("/path/to/plots/FigS2_path_scores_distributions.pdf",
+       width = 5,
+    height = 3.5,
+    units = c("in"))
+
+
+```
+
+
+
+## Plot evenness distributions
+
+```{r}
+
+SDI_df <- read.table("/path/to/splicing_order_paths_random_K562_with_Shannon_index_with100iterations.txt", sep="\t",
+                     header=T)
+
+SDI_df$approach <- factor(SDI_df$approach, levels=c("measured_path", "random", "SS_score", "1stCome_1stServe"))
+
+```
+
+
+
+```{r, fig.height=2.5, fig.width=4}
+
+SDI_df %>%  filter(approach %in% c("measured_path", "random")) %>%
+  ggplot(aes(x=factor(n_introns), y=Evenness, colour=approach)) + geom_boxplot(outlier.size=0.8) + theme_bw() +
+  scale_colour_manual(values=c(cbPalette_long[2],cbPalette_long[16])) + xlab("number of analyzed introns") + ylab("Evenness") + ggtitle("Evenness")
+
+
+ggsave("/path/to/plots/Fig2_Evenness_boxplot.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+SDI_df %>%  filter(approach %in% c("measured_path", "random")) %>% group_by(approach, n_introns) %>% summarise(median(Evenness))
+
+```
+
+```{r}
+
+SDI_df %>% filter(approach == "measured_path") %>% group_by(n_introns) %>% summarise(max(Evenness))
+
+```
+
+
+
+```{r, fig.height=2.5, fig.width=4}
+
+SDI_df %>% filter(approach %in% c("measured_path", "random")) %>%
+  ggplot(aes(x=factor(n_introns), y=Shannon_diversity, colour=approach)) + geom_boxplot(outlier.size=0.8) + theme_bw() +
+  scale_colour_manual(values=c(cbPalette_long[2],cbPalette_long[16])) + xlab("number of analyzed introns") + ylab("Shannon diversity index") + ggtitle("Diversity")
+
+
+ggsave("/path/to/plots/FigS2_Shannon_diversity_index_boxplot.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+
+
+## Correlation between K562 replicates
+
+```{r}
+
+repA_paths_tmp <- read.table("/path/to/K562_chromatin_splicing_paths_non_consecutive_introns.repA.RefSeq.max4introns.txt", sep="\t", header=T)
+repB_paths_tmp <- read.table("/path/to/K562_chromatin_splicing_paths_non_consecutive_introns.repB.RefSeq.max4introns.txt", sep="\t", header=T)
+K562_paths_tmp <- read.table("/path/to/K562_chromatin_splicing_paths_non_consecutive_introns.2mergedReps.RefSeq.max4introns.txt", sep="\t", header=T)
+
+repA_paths_nodup <- read.table("/path/to/K562_paths_nodup_repA.txt", sep="\t", header=T)
+repB_paths_nodup <- read.table("/path/to/K562_paths_nodup_repB.txt", sep="\t", header=T)
+K562_paths_nodup <- read.table("/path/to/K562_paths_nodup_merged.txt", sep="\t", header=T)
+
+repA_paths_tmp$replicate <- "repA"
+repB_paths_tmp$replicate <- "repB"
+K562_paths_tmp$replicate <- "merged"
+
+repA_regions = repA_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+repB_regions = repB_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+K562_regions = K562_paths_nodup %>% dplyr::select(gene_name, gene, analyzed_introns) %>% distinct()
+
+repA_paths_tmp <- repA_paths_tmp %>% inner_join(repA_regions, by=c("gene","gene_name","analyzed_introns"))
+repB_paths_tmp <- repB_paths_tmp %>% inner_join(repB_regions, by=c("gene","gene_name","analyzed_introns"))
+K562_paths_tmp <- K562_paths_tmp %>% inner_join(K562_regions, by=c("gene","gene_name","analyzed_introns"))
+
+per_rep_counts <- rbind(repA_paths_tmp, repB_paths_tmp, K562_paths_tmp) %>% dplyr::select(replicate, sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2) %>% distinct()
+
+per_rep_counts$replicate <- factor(per_rep_counts$replicate, levels=c("repA","repB","merged"))
+
+
+```
+
+```{r}
+
+per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>%
+  ggplot(aes(x=chr_rep1, y=chr_rep2)) + geom_point(alpha=0.05, size=0.5) + theme_bw() + facet_wrap(~replicate) + scale_y_continuous(trans="log10") + scale_x_continuous(trans="log10") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("counts per intron group - intermediate isoforms")
+
+ggsave("/path/to/plots/FigS2_K562_correlation_counts_per_intron_group_interm_isoforms.pdf",
+       width = 6,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_counts_repA = per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>% filter(replicate == "repA") %>% drop_na()
+
+cor.test(log10(per_rep_counts_repA$chr_rep1), log10(per_rep_counts_repA$chr_rep2), method="pearson")
+
+
+```
+
+```{r}
+
+per_rep_counts_repB = per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>% filter(replicate == "repB") %>% drop_na()
+
+cor.test(log10(per_rep_counts_repB$chr_rep1), log10(per_rep_counts_repB$chr_rep2), method="pearson")
+
+
+```
+
+```{r}
+
+per_rep_counts_merged = per_rep_counts %>% spread(sample_name, count_pattern2) %>% filter(grepl("YES", pattern2) & grepl("NO", pattern2)) %>% filter(replicate == "merged") %>% drop_na()
+
+cor.test(log10(per_rep_counts_merged$chr_rep1), log10(per_rep_counts_merged$chr_rep2), method="pearson")
+
+
+```
+
+
+```{r}
+
+per_rep_paths <- rbind(repA_paths_tmp, repB_paths_tmp, K562_paths_tmp) %>% dplyr::select(replicate, sample_name, gene_name, gene, analyzed_introns, full_path, full_path_score, rank) %>% distinct()
+per_rep_paths$replicate <- factor(per_rep_paths$replicate, levels=c("repA","repB","merged"))
+
+per_rep_paths %>% spread(sample_name, full_path_score) %>% 
+  ggplot(aes(x=chr_rep1, y=chr_rep2)) + geom_point(alpha=0.3, size=1) + theme_bw() + facet_wrap(~replicate) + 
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + ggtitle("splicing order scores")
+
+
+ggsave("/path/to/plots/FigS2_K562_correlation_splicing_order_scores.pdf",
+       width = 6,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+per_rep_paths_A <- per_rep_paths %>% spread(sample_name, full_path_score) %>% filter(replicate == "repA")
+
+cor.test(per_rep_paths_A$chr_rep1, per_rep_paths_A$chr_rep2, method="pearson")
+
+
+```
+
+```{r}
+
+per_rep_paths_B <- per_rep_paths %>% spread(sample_name, full_path_score) %>% filter(replicate == "repB")
+
+cor.test(per_rep_paths_B$chr_rep1, per_rep_paths_B$chr_rep2, method="pearson")
+
+
+```
+
+
+```{r}
+
+per_rep_paths_merged <- per_rep_paths %>% spread(sample_name, full_path_score) %>% filter(replicate == "merged")
+
+cor.test(per_rep_paths_merged$chr_rep1, per_rep_paths_merged$chr_rep2, method="pearson")
+
+
+```
+
+
+## Coverage calculations
+
+```{r}
+
+# How many intron groups exceed the 10 reads threshold?
+
+path_df_reprod <- read.table("/path/to/splicing_order_paths_reproducible_K562_all_reps.txt", sep="\t", header=T)
+
+path_df <- read.table("/path/to/K562_chromatin_splicing_paths_non_consecutive_introns.2mergedReps.RefSeq.max4introns.txt", sep="\t", header=T)
+
+analyzed_groups <- path_df_reprod %>% filter(rank_x == 1) %>% dplyr::select(gene, gene_name, analyzed_introns, n_analyzed_introns) %>% distinct()
+
+path_df_analyzed <- path_df %>% filter(grepl("NO", pattern2) & grepl("YES", pattern2)) %>% 
+  dplyr::select(sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2, level) %>% distinct() %>%
+  group_by(sample_name, gene_name, gene, analyzed_introns, level) %>% summarise(count = sum(count_pattern2)) %>% 
+  inner_join(analyzed_groups, by=c("gene","gene_name","analyzed_introns"))
+
+
+```
+
+```{r}
+
+path_df_analyzed %>%
+  ggplot(aes(x=count, color=factor(level), linetype=sample_name)) + stat_ecdf() + scale_color_manual(values=cbPalette_long[2:6]) + theme_bw() +
+  scale_x_continuous(trans="log10") + facet_grid(~n_analyzed_introns)
+
+ggsave("/path/to/plots/FigS2_K562_counts_per_intron_group_CDF.pdf",
+       width = 5,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# Median read count
+path_df_analyzed %>% group_by(sample_name, n_analyzed_introns, level) %>% summarise(Med = median(count)) %>% spread(sample_name, Med) %>% rowwise() %>%
+  mutate(avg = mean(c(chr_rep1, chr_rep2)))
+
+
+```
+
+```{r}
+
+# How many intron groups have > 20 reads at each level?
+path_df_analyzed$level <- paste("intron", path_df_analyzed$level, sep="")
+print("number of introns groups with 20 reads or more at each level")
+print(nrow(path_df_analyzed %>% spread(level, count) %>%
+  mutate(intron3 = replace_na(intron3, 0)) %>%
+  filter((n_analyzed_introns == 3 & intron1 >= 20 & intron2 >= 20) | 
+          (n_analyzed_introns == 4 & intron1 >= 20 & intron2 >= 20 & intron3 >= 20)) %>%
+  dplyr::select(sample_name, gene_name, gene, analyzed_introns, intron1) %>% spread(sample_name, intron1) %>% drop_na()))
+
+
+```
+
+```{r}
+
+# Plot Evenness as a function of read coverage
+
+SDI_df <- read.table("/path/to/splicing_order_paths_random_K562_with_Shannon_index_with100iterations.txt", sep="\t",
+                     header=T)
+
+SDI_df <- SDI_df %>% filter(approach == "measured_path")
+
+
+path_df_analyzed_SDI <- path_df_analyzed %>% group_by(sample_name, gene_name, gene, analyzed_introns, n_analyzed_introns) %>% summarise(sum_count=sum(count)) %>%
+  inner_join(SDI_bins, by=c("gene","analyzed_introns","gene_name","n_analyzed_introns"="n_introns"))
+
+
+```
+
+```{r}
+
+path_df_analyzed_SDI %>%
+  ggplot(aes(x=sum_count, color=Evenness, linetype=sample_name)) + stat_ecdf() + scale_color_manual(values=cbPalette_long) + theme_bw() +
+  scale_x_continuous(trans="log10") + facet_wrap(~n_analyzed_introns)
+
+ggsave("/path/to/plots/FigS2_K562_counts_per_intron_group_binned_by_evenness_CDF.pdf",
+       width = 5,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# What's the proportion of intermediate reads for each intron group?
+
+path_df_by_status <- path_df %>%
+  dplyr::select(sample_name, gene_name, gene, analyzed_introns, pattern2, count_pattern2, level) %>% distinct() %>%
+  mutate(splice_status = case_when(grepl("YES", pattern2) & !grepl("NO", pattern2) ~ "all_spliced",
+                                   grepl("YES", pattern2) & grepl("NO", pattern2) ~ "partially_spliced",
+                                   !grepl("YES", pattern2) & grepl("NO", pattern2) ~ "all_unspliced")) %>%
+  group_by(sample_name, gene_name, gene, analyzed_introns, splice_status) %>% summarise(count = sum(count_pattern2)) %>%
+  mutate(freq = count/sum(count)) %>% inner_join(analyzed_groups, by=c("gene","gene_name","analyzed_introns"))
+
+path_df_by_status$splice_status <- factor(path_df_by_status$splice_status, levels=c("all_spliced","partially_spliced","all_unspliced"))
+
+
+path_df_by_status %>%
+  ggplot(aes(x=factor(n_analyzed_introns), y=freq, color=splice_status)) +  geom_quasirandom(cex=0.01, dodge.width=.8) + geom_boxplot(outlier.shape=NA) +
+  scale_color_manual(values=cbPalette_long) + theme_bw() +
+  facet_wrap(~sample_name) + xlab("number of analyzed introns") + ylab("proportion of reads")
+  
+
+ggsave("/path/to/plots/FigS2_K562_frequency_splice_status_per_intron_group_boxplot.pdf",
+       width = 5,
+    height = 2,
+    units = c("in"))
+
+
+```
+
+
+
+
+## Splicing order vs. short-read RNA-seq data
+
+```{r}
+
+# Get splicing index for short-read chromatin or 4sU-chromatin RNA-seq from Drexler et al. 2020
+SI_chr1 <- read.table("/path/to/chr_1_SI_counts.txt", sep="\t", header=T)
+SI_chr2 <- read.table("/path/to/chr_2_SI_counts.txt", sep="\t", header=T)
+SI_chr4sU1 <- read.table("/path/to/4sUchr_1_SI_counts.txt", sep="\t", header=T)
+SI_chr4sU2 <- read.table("/path/to/4sUchr_2_SI_counts.txt", sep="\t", header=T)
+
+SI_chr1$sample_name <- "chromatin_rep1"
+SI_chr2$sample_name <- "chromatin_rep2"
+SI_chr4sU1$sample_name <- "X4sUchr_rep1"
+SI_chr4sU2$sample_name <- "X4sUchr_rep2"
+
+SI_chr <- rbind(SI_chr1, SI_chr2,SI_chr4sU1,SI_chr4sU2)
+
+SI_chr <- SI_chr %>% mutate(total_counts = X5SS_count + X3SS_count + splice_count) %>% filter(total_counts > 10) %>%
+  mutate(SI = 2*splice_count / (X5SS_count + X3SS_count)) %>%
+  separate(sample_name, c("RNA","rep"), sep="_", remove=F) %>%
+  group_by(gene, intron, chr, start, end, strand, RNA) %>% summarise(mean_SI = mean(SI)) %>% spread(RNA, mean_SI)
+
+SI_chr$chr <- paste("chr", SI_chr$chr, sep="")
+
+```
+
+```{r}
+
+# Get splicing orders from direct RNA sequencing
+
+path_df_reprod <- read.table("/path/to/splicing_order_paths_reproducible_K562_all_reps.txt", sep="\t", header=T)
+
+# Load intron annotations
+hg38_intron_info = read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+hg38_intron_info$chrom <- paste("chr", hg38_intron_info$chrom, sep="")
+
+# Merge splicing index from short-read and intron annotations
+hg38_intron_info <- hg38_intron_info %>% left_join(SI_chr, by=c("chrom"="chr","start","end","strand","gene"))
+
+hg38_intron_info_var = hg38_intron_info %>% dplyr::select(c('gene','intron_pos','intron_order', 'intron_length','MaxEnt_score_5SS','MaxEnt_score_3SS','BP_score_median','GC_content','chromatin','X4sUchr'))
+hg38_intron_info_var$intron_pos <- as.character(hg38_intron_info_var$intron_pos)
+
+```
+
+
+```{r}
+
+# Reformat splicing orders to get the splicing order for each intron in the top rank
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+both_df <- rbind(triplets, quads) %>% distinct()
+
+```
+
+```{r}
+
+both_df %>% gather(RNA, SI, c("chromatin","X4sUchr")) %>% 
+  ggplot(aes(x=RNA, y=SI, fill=order)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=cbPalette_long[9:12]) + ggtitle("splicing index") + facet_wrap(~n_analyzed_introns, scales="free_x")
+
+ggsave("/path/to/plots/FigS4_splicing_order_vs_splicing_index_chromatin_and_4sUchr.pdf",
+       width = 6,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+
+```{r}
+
+# Stats
+
+triplet_spliced1st <- filter(triplets, order == "intron1")
+triplet_spliced2nd <- filter(triplets, order == "intron2")
+triplet_spliced3rd <- filter(triplets, order == "intron3")
+
+quad_spliced1st <- filter(quads, order == "intron1")
+quad_spliced2nd <- filter(quads, order == "intron2")
+quad_spliced3rd <- filter(quads, order == "intron3")
+quad_spliced4th <- filter(quads, order == "intron4")
+
+print("chromatin triplets")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(triplet_spliced1st$chromatin, triplet_spliced2nd$chromatin)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(triplet_spliced1st$chromatin, triplet_spliced3rd$chromatin)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(triplet_spliced2nd$chromatin, triplet_spliced3rd$chromatin)[[3]], sep=": "))
+
+print("chromatin quads")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(quad_spliced1st$chromatin, quad_spliced2nd$chromatin)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(quad_spliced1st$chromatin, quad_spliced3rd$chromatin)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", wilcox.test(quad_spliced1st$chromatin, quad_spliced4th$chromatin)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(quad_spliced2nd$chromatin, quad_spliced3rd$chromatin)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", wilcox.test(quad_spliced2nd$chromatin, quad_spliced4th$chromatin)[[3]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", wilcox.test(quad_spliced3rd$chromatin, quad_spliced4th$chromatin)[[3]], sep=": "))
+
+print("4sU-chromatin triplets")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(triplet_spliced1st$X4sUchr, triplet_spliced2nd$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(triplet_spliced1st$X4sUchr, triplet_spliced3rd$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(triplet_spliced2nd$X4sUchr, triplet_spliced3rd$X4sUchr)[[3]], sep=": "))
+
+print("4sU-chromatin quads")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(quad_spliced1st$X4sUchr, quad_spliced2nd$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(quad_spliced1st$X4sUchr, quad_spliced3rd$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", wilcox.test(quad_spliced1st$X4sUchr, quad_spliced4th$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(quad_spliced2nd$X4sUchr, quad_spliced3rd$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", wilcox.test(quad_spliced2nd$X4sUchr, quad_spliced4th$X4sUchr)[[3]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", wilcox.test(quad_spliced3rd$X4sUchr, quad_spliced4th$X4sUchr)[[3]], sep=": "))
+
+```
+
+
+## Plot splicing index (short-read) as a function of number of intermediate reads with that intron spliced
+
+```{r}
+
+# Load file with counts for intermediate reads with each intron spliced, and corresponding frequencies
+
+score_df <- read.table("/path/to/K562_merged_reps_aggregated_splicing_order_scores.txt", sep="\t", header=T)
+freq_df <- read.table("/path/to/K562_merged_reps_aggregated_splicing_order_frequencies.txt", sep="\t", header=T)
+
+hg38_intron_info_var$intron_pos <- as.numeric(hg38_intron_info_var$intron_pos)
+
+# Merge with intron annotations
+score_df <- score_df %>% inner_join(hg38_intron_info_var[,c("gene","intron_pos","chromatin","X4sUchr")], by=c("gene","intron"="intron_pos"))
+
+```
+
+```{r}
+
+score_df %>% gather(sample_name, score, c("chr_rep1","chr_rep2")) %>% 
+  gather(RNA, SI, c("chromatin","X4sUchr")) %>% ungroup() %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>%
+  ggplot(aes(x=score, y=SI)) + facet_grid(sample_name~RNA) + geom_point(alpha=0.1, size=1) + theme_bw() +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") +
+  scale_y_continuous(trans="log10") + scale_x_continuous(trans="log10") + ylab("splicing index") + xlab("number of spliced intermediate isoforms")
+
+ggsave("/path/to/plots/FigS4_splicing_order_vs_splicing_index_chromatin_and_4sUchr_from_interm_isoform_counts_correlation.pdf",
+       width = 6,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+cor_df_chr_rep1 <- score_df %>% gather(sample_name, score, c("chr_rep1","chr_rep2")) %>% 
+  gather(RNA, SI, c("chromatin","X4sUchr")) %>% ungroup() %>%
+  mutate(log10_score = log10(score), log10_SI = log10(SI)) %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>% drop_na() %>% filter(is.finite(log10_score) & is.finite(log10_SI) & RNA == "chromatin" & sample_name == "chr_rep1")
+
+cor.test(cor_df_chr_rep1$log10_score, cor_df_chr_rep1$log10_SI, method="pearson")
+
+```
+
+```{r}
+
+cor_df_chr_rep2 <- score_df %>% gather(sample_name, score, c("chr_rep1","chr_rep2")) %>% 
+  gather(RNA, SI, c("chromatin","X4sUchr")) %>% ungroup() %>%
+  mutate(log10_score = log10(score), log10_SI = log10(SI)) %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>% drop_na() %>% filter(is.finite(log10_score) & is.finite(log10_SI) & RNA == "chromatin" & sample_name == "chr_rep2")
+
+cor.test(cor_df_chr_rep2$log10_score, cor_df_chr_rep2$log10_SI, method="pearson")
+
+```
+
+
+```{r}
+
+cor_df_4sU_rep1 <- score_df %>% gather(sample_name, score, c("chr_rep1","chr_rep2")) %>% 
+  gather(RNA, SI, c("chromatin","X4sUchr")) %>% ungroup() %>%
+  mutate(log10_score = log10(score), log10_SI = log10(SI)) %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>% drop_na() %>% filter(is.finite(log10_score) & is.finite(log10_SI) & RNA == "X4sUchr" & sample_name == "chr_rep1")
+
+cor.test(cor_df_4sU_rep1$log10_score, cor_df_4sU_rep1$log10_SI, method="pearson")
+
+```
+
+```{r}
+
+cor_df_4sU_rep2 <- score_df %>% gather(sample_name, score, c("chr_rep1","chr_rep2")) %>% 
+  gather(RNA, SI, c("chromatin","X4sUchr")) %>% ungroup() %>%
+  mutate(log10_score = log10(score), log10_SI = log10(SI)) %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>% drop_na() %>% filter(is.finite(log10_score) & is.finite(log10_SI) & RNA == "X4sUchr" & sample_name == "chr_rep2")
+
+cor.test(cor_df_4sU_rep2$log10_score, cor_df_4sU_rep2$log10_SI, method="pearson")
+
+```
+
+
+
+## Intron length vs. splicing order
+
+```{r}
+
+# Load splicing orders
+path_df_reprod <- read.table("/path/to/splicing_order_paths_reproducible_K562_all_reps.txt", sep="\t", header=T)
+
+# Load intron annotations
+hg38_intron_info = read.table("/path/to/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+hg38_intron_info$chrom <- paste("chr", hg38_intron_info$chrom, sep="")
+
+hg38_intron_info_var = hg38_intron_info %>% dplyr::select(c('gene','intron_pos','intron_length','MaxEnt_score_5SS','MaxEnt_score_3SS','BP_score_median','GC_content','intron_order'))
+hg38_intron_info_var$intron_pos <- as.character(hg38_intron_info_var$intron_pos)
+
+```
+
+
+```{r}
+
+# Retrieve the per-intron splicing order in the top ranked order
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+both_df <- rbind(triplets, quads)
+
+```
+
+
+```{r}
+
+# Median length for analyzed introns
+
+both_df %>% summarise(median(intron_length))
+
+```
+
+```{r}
+
+intron_length_plot <- both_df %>% ggplot(aes(x=order, y=intron_length, color=order)) + geom_quasirandom(cex=0.05, dodge.width=.8) + 
+  geom_boxplot(outlier.shape = NA, color="black") + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_color_manual(values=cbPalette_long[9:12]) + ggtitle("splicing index") + facet_wrap(~n_analyzed_introns, scales="free_x")
+
+intron_length_plot
+
+ggsave("/path/to/plots/FigS2_splicing_order_vs_intron_length.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+
+```{r}
+
+# Stats
+
+triplet_spliced1st <- filter(triplets, order == "intron1")
+triplet_spliced2nd <- filter(triplets, order == "intron2")
+triplet_spliced3rd <- filter(triplets, order == "intron3")
+
+quad_spliced1st <- filter(quads, order == "intron1")
+quad_spliced2nd <- filter(quads, order == "intron2")
+quad_spliced3rd <- filter(quads, order == "intron3")
+quad_spliced4th <- filter(quads, order == "intron4")
+
+print("triplets")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(triplet_spliced1st$intron_length, triplet_spliced2nd$intron_length)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(triplet_spliced1st$intron_length, triplet_spliced3rd$intron_length)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(triplet_spliced2nd$intron_length, triplet_spliced3rd$intron_length)[[3]], sep=": "))
+
+print("quads")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(quad_spliced1st$intron_length, quad_spliced2nd$intron_length)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(quad_spliced1st$intron_length, quad_spliced3rd$intron_length)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", wilcox.test(quad_spliced1st$intron_length, quad_spliced4th$intron_length)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(quad_spliced2nd$intron_length, quad_spliced3rd$intron_length)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", wilcox.test(quad_spliced2nd$intron_length, quad_spliced4th$intron_length)[[3]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", wilcox.test(quad_spliced3rd$intron_length, quad_spliced4th$intron_length)[[3]], sep=": "))
+
+```
+
+
+
+## Splicing order vs. nano-COP
+
+```{r}
+
+# Get gene names annotations
+
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name","gene_id")
+
+```
+
+
+```{r}
+
+# Get intron annotations
+
+hg38_intron_info = read.table("/path/to/annotations/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+
+intron_to_gene_name <- hg38_intron_info %>% separate(gene, c("gene_id"), sep="\\.", extra="drop") %>% inner_join(gene_names_df, by=c("gene_id")) %>%
+  dplyr::select(chrom, start, end, strand, gene_name) %>% distinct()
+
+# Get splicing order within intron pairs, computed for each sample in python
+
+intron_pairs_df <- read.table("/path/to/K562_nanoCOP_vs_polyA_intron_pairs.txt", sep="\t", header=T)
+intron_pairs_df$chrom <- as.character(intron_pairs_df$chrom)
+
+# Filter for a minimum number of intermediate reads
+# Require a minimum of 10 fully unspliced reads to ensure that those introns are not too long to be detected
+intron_pairs_df <- intron_pairs_df %>% filter(NO_NO_x >= 10 & NO_NO_y >= 10 & NO_NO >= 10) %>%
+  mutate(fraction_in_order_x = YES_NO_x / (YES_NO_x + NO_YES_x),
+         fraction_in_order_y = YES_NO_y / (YES_NO_y + NO_YES_y),
+         fraction_in_order_z = YES_NO / (YES_NO + NO_YES)) %>% rowwise() %>%
+  mutate(polyA_avg = mean(c(fraction_in_order_y, fraction_in_order_z)),
+         SD = sd(c(fraction_in_order_y, fraction_in_order_z))) %>%
+  inner_join(intron_to_gene_name, by=c("chrom","start1"="start","end1"="end","strand"))
+
+
+intron_pairs_df %>%
+  ggplot(aes(x=fraction_in_order_x, y=polyA_avg)) + geom_point(alpha=0.5, size=2) + theme_bw() +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, color="red") + xlab("nano-COP") + ylab("direct polyA+ RNA-seq") +
+  geom_errorbar(aes(y=polyA_avg, ymin=polyA_avg-SD, ymax=polyA_avg+SD))
+
+
+ggsave("/path/to/plots/FigS4_splicing_order_nanoCOP_vs_polyA_scatter_plot.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+cor.test(intron_pairs_df$fraction_in_order_x, intron_pairs_df$polyA_avg, method="pearson")
+
+```
+
+
+```{r}
+
+# Frequency by read splicing status
+
+intron_pairs_df_freq <- intron_pairs_df %>% gather(status, count, c("YES_NO_x","NO_YES_x","NO_NO_x","YES_YES_x","YES_NO_y","NO_YES_y","NO_NO_y","YES_YES_y",
+                                                                    "YES_NO","NO_YES","NO_NO","YES_YES")) %>%
+  mutate(splice_status = case_when(grepl("YES", status) & grepl("NO", status) ~ "partially_spliced",
+                                   !grepl("YES", status) & grepl("NO", status) ~ "unspliced",
+                                   grepl("YES", status) & !grepl("NO", status) ~ "spliced")) %>%
+  separate(status, c("int1","int2","sample_id"), sep="_") %>% dplyr::select(-int1, -int2) %>%
+  group_by(sample_id, intron_coord, splice_status) %>% summarise(sum_count = sum(count)) %>%
+  mutate(freq = sum_count/sum(sum_count)) %>%
+  mutate(sample_name = case_when(sample_id == "x" ~ "nanoCOP",
+                                 sample_id == "y" ~ "polyA+_rep1",
+                                 TRUE ~ "polyA+_rep2"))
+  
+intron_pairs_df_freq$splice_status <- factor(intron_pairs_df_freq$splice_status, levels=c("spliced","partially_spliced","unspliced"))
+
+intron_pairs_df_freq %>%
+  ggplot(aes(x=sample_name, y=freq, color=splice_status)) + geom_boxplot(outlier.shape=NA) + geom_quasirandom(cex=0.5, dodge.width=.8) + 
+  scale_color_manual(values=cbPalette_long) + theme_bw() + xlab("sample") + ylab("proportion of reads")
+
+
+ggsave("/path/to/plots/FigS4_splicing_order_nanoCOP_vs_polyA_freq_splicing_status.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+
+## Intron position (e.g. last and first introns) vs. splicing order
+
+```{r}
+
+# Get per intron splicing order in top ranked order
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>%
+  inner_join(hg38_intron_info_var, by=c("gene","intron_pos"))
+
+both_df <- rbind(triplets, quads) %>% distinct()
+
+```
+
+```{r}
+
+# Identify first and last introns and plot distribution in intron groups
+
+both_df_pos <- both_df %>% dplyr::select(gene_name, gene, n_analyzed_introns, analyzed_introns, order, intron_order) %>% distinct() %>%
+  spread(order, intron_order) %>% unite(all_order, c("intron1","intron2","intron3","intron4"), sep="_") %>%
+  mutate(category = case_when(grepl("last", all_order) & grepl("first", all_order) ~ "first_and_last",
+                              grepl("last", all_order) & !grepl("first", all_order) ~ "last",
+                              !grepl("last", all_order) & grepl("first", all_order) ~ "first",
+                              TRUE ~ "middle_only"))
+
+both_df_pos$category <- factor(both_df_pos$category, levels=c("first","last","first_and_last","middle_only"))
+
+both_df_pos %>% 
+  group_by(n_analyzed_introns, category) %>% summarise(n=n()) %>%
+  ggplot(aes(x=factor(n_analyzed_introns), y=n, fill=category)) + theme_bw() + geom_bar(stat="identity", position="stack") + 
+  scale_fill_manual(values=cbPalette_long[9:12])
+
+ggsave("/path/to/plots/FigS4_intron_groups_by_intron_position_stacked_bar_plot.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+```
+
+```{r}
+
+both_df_pos %>% 
+  group_by(category) %>% summarise(n=n()) %>% mutate(freq = n/sum(n))
+
+```
+
+
+```{r}
+
+# Compare splicing order and intron position
+
+both_df %>% inner_join(both_df_pos, by=c("gene","analyzed_introns","n_analyzed_introns")) %>%
+  filter(category != "middle_only") %>% 
+  group_by(n_analyzed_introns, category, order, intron_order) %>% summarise(n=n()) %>%
+  ggplot(aes(x=order, y=n, fill=intron_order)) + geom_bar(stat="identity", position="stack") + theme_bw() + 
+  facet_wrap(category~n_analyzed_introns, scales="free", ncol=2) +
+  scale_fill_manual(values=cbPalette_long[9:15])
+
+ggsave("/path/to/plots/FigS4_splicing_order_by_intron_position_stacked_bar_plot_from_top_order.pdf",
+       width = 5,
+    height = 5,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+# stats
+
+last_only <- both_df %>% inner_join(both_df_pos, by=c("gene","analyzed_introns","n_analyzed_introns")) %>%
+  filter(category == "last") %>%
+  group_by(n_analyzed_introns, category, order, intron_order) %>% summarise(n=n()) %>% spread(intron_order, n)
+
+print("triplets, last only")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(last_only[1:2,c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(last_only[c(1,3),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(last_only[2:3,c("last","middle")])[[1]], sep=": "))
+
+print("quads, last only")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(last_only[c(4,5),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(last_only[c(4,6),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", fisher.test(last_only[c(4,7),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(last_only[c(5,6),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", fisher.test(last_only[c(5,7),c("last","middle")])[[1]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", fisher.test(last_only[c(6,7),c("last","middle")])[[1]], sep=": "))
+
+first_only <- both_df %>% inner_join(both_df_pos, by=c("gene","analyzed_introns","n_analyzed_introns")) %>%
+  filter(category == "first") %>%
+  group_by(n_analyzed_introns, category, order, intron_order) %>% summarise(n=n()) %>% spread(intron_order, n)
+
+print("triplets, first only")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(first_only[1:2,c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(first_only[c(1,3),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(first_only[2:3,c("first","middle")])[[1]], sep=": "))
+
+print("quads, first only")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(first_only[c(4,5),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(first_only[c(4,6),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", fisher.test(first_only[c(4,7),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(first_only[c(5,6),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", fisher.test(first_only[c(5,7),c("first","middle")])[[1]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", fisher.test(first_only[c(6,7),c("first","middle")])[[1]], sep=": "))
+
+
+first_and_last <- both_df %>% inner_join(both_df_pos, by=c("gene","analyzed_introns","n_analyzed_introns")) %>%
+  filter(category == "first_and_last") %>%
+  group_by(n_analyzed_introns, category, order, intron_order) %>% summarise(n=n()) %>% spread(intron_order, n)
+
+print("triplets, first_and_last only")
+print(paste("spliced 1st vs. spliced 2nd", chisq.test(first_and_last[1:2,c("first","middle","last")])[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", chisq.test(first_and_last[c(1,3),c("first","middle","last")])[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", chisq.test(first_and_last[2:3,c("first","middle","last")])[[3]], sep=": "))
+
+print("quads, first only")
+print(paste("spliced 1st vs. spliced 2nd", chisq.test(first_and_last[4:5,c("first","middle","last")])[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", chisq.test(first_and_last[c(4,6),c("first","middle","last")])[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", chisq.test(first_and_last[5:6,c("first","middle","last")])[[3]], sep=": "))
+
+
+```
+
+
+## Splice site strength vs. splicing order
+
+```{r}
+
+# Retrieve frequency of intermediate isoforms with each intron spliced
+
+freq_df <- read.table("/path/to/K562_merged_reps_aggregated_splicing_order_frequencies.txt", sep="\t", header=T)
+
+hg38_intron_info_var$intron_pos <- as.numeric(hg38_intron_info_var$intron_pos)
+
+# Merge with intron annotations
+freq_df <- freq_df %>% inner_join(hg38_intron_info_var[,c("gene","intron_pos","MaxEnt_score_5SS","MaxEnt_score_3SS","BP_score_median")], by=c("gene","intron"="intron_pos"))
+
+```
+
+
+```{r}
+
+# Categorize splice sites
+
+freq_df_cat <- freq_df %>%
+  mutate(category = case_when(MaxEnt_score_3SS <= 8 & MaxEnt_score_5SS <= 8 ~ "weak",
+                              MaxEnt_score_3SS > 9 & MaxEnt_score_5SS > 9 ~ "strong",
+                              MaxEnt_score_3SS > 9 & MaxEnt_score_5SS <= 9 ~ "strong",
+                              MaxEnt_score_5SS > 9 & MaxEnt_score_3SS <= 9 ~ "strong",
+                              MaxEnt_score_3SS <= 8 & MaxEnt_score_5SS > 8 ~ "weak",
+                              MaxEnt_score_5SS <= 8 & MaxEnt_score_3SS > 8 ~ "weak",
+                              MaxEnt_score_3SS > 8 & MaxEnt_score_3SS <= 9 & MaxEnt_score_5SS > 8 & MaxEnt_score_5SS <= 9 ~ "moderate",
+                              TRUE ~ "other"))
+
+freq_df_cat$category <- factor(freq_df_cat$category, levels=c("strong","moderate","weak"))
+
+
+freq_df_cat %>%
+  gather(sample_name, freq, c("chr_rep1","chr_rep2")) %>%
+  dplyr::select(-analyzed_introns) %>% distinct() %>%
+  ggplot(aes(x=sample_name, y=freq, fill=category)) + geom_boxplot(outlier.size=0.5) + theme_bw() + scale_fill_manual(values=cbPalette_long[9:16]) +
+  ylim(0,1.1) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave("/path/to/plots/FigS4_splice_site_strength_vs_interm_isoform_freq_boxplot.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+```
+
+```{r}
+
+# stats
+
+freq_df_cat_for_stats_rep1 <- freq_df_cat %>%
+  gather(sample_name, freq, c("chr_rep1","chr_rep2")) %>% filter(sample_name == "chr_rep1") %>%
+  dplyr::select(-analyzed_introns) %>% distinct()
+
+freq_df_cat_for_stats_rep2 <- freq_df_cat %>%
+  gather(sample_name, freq, c("chr_rep1","chr_rep2")) %>% filter(sample_name == "chr_rep2") %>%
+  dplyr::select(-analyzed_introns) %>% distinct()
+
+freq_df_cat_for_stats_rep1_strong <- freq_df_cat_for_stats_rep1 %>% filter(category == "strong")
+freq_df_cat_for_stats_rep1_mod <- freq_df_cat_for_stats_rep1 %>% filter(category == "moderate")
+freq_df_cat_for_stats_rep1_weak <- freq_df_cat_for_stats_rep1 %>% filter(category == "weak")
+
+print("chr rep1")
+print(paste("strong vs. moderate", wilcox.test(freq_df_cat_for_stats_rep1_strong$freq, freq_df_cat_for_stats_rep1_mod$freq)[[3]], sep=": "))
+print(paste("strong vs. weak", wilcox.test(freq_df_cat_for_stats_rep1_strong$freq, freq_df_cat_for_stats_rep1_weak$freq)[[3]], sep=": "))
+print(paste("moderate vs. weak", wilcox.test(freq_df_cat_for_stats_rep1_mod$freq, freq_df_cat_for_stats_rep1_weak$freq)[[3]], sep=": "))
+
+freq_df_cat_for_stats_rep2_strong <- freq_df_cat_for_stats_rep2 %>% filter(category == "strong")
+freq_df_cat_for_stats_rep2_mod <- freq_df_cat_for_stats_rep2 %>% filter(category == "moderate")
+freq_df_cat_for_stats_rep2_weak <- freq_df_cat_for_stats_rep2 %>% filter(category == "weak")
+
+print("chr rep2")
+print(paste("strong vs. moderate", wilcox.test(freq_df_cat_for_stats_rep2_strong$freq, freq_df_cat_for_stats_rep2_mod$freq)[[3]], sep=": "))
+print(paste("strong vs. weak", wilcox.test(freq_df_cat_for_stats_rep2_strong$freq, freq_df_cat_for_stats_rep2_weak$freq)[[3]], sep=": "))
+print(paste("moderate vs. weak", wilcox.test(freq_df_cat_for_stats_rep2_mod$freq, freq_df_cat_for_stats_rep2_weak$freq)[[3]], sep=": "))
+
+
+```
+
+```{r}
+
+# Compare splice site strength to splicing order in top ranked order
+
+# Categorize splice sites
+both_df_cat <- both_df %>%
+  mutate(category = case_when(MaxEnt_score_3SS <= 8 & MaxEnt_score_5SS <= 8 ~ "weak",
+                              MaxEnt_score_3SS > 9 & MaxEnt_score_5SS > 9 ~ "strong",
+                              MaxEnt_score_3SS > 9 & MaxEnt_score_5SS <= 9 ~ "strong",
+                              MaxEnt_score_5SS > 9 & MaxEnt_score_3SS <= 9 ~ "strong",
+                              MaxEnt_score_3SS <= 8 & MaxEnt_score_5SS > 8 ~ "weak",
+                              MaxEnt_score_5SS <= 8 & MaxEnt_score_3SS > 8 ~ "weak",
+                              MaxEnt_score_3SS > 8 & MaxEnt_score_3SS <= 9 & MaxEnt_score_5SS > 8 & MaxEnt_score_5SS <= 9 ~ "moderate",
+                              TRUE ~ "other"))
+
+both_df_cat$category <- factor(both_df_cat$category, levels=c("strong","moderate","weak"))
+
+both_df_cat %>% group_by(n_analyzed_introns, order, category) %>% summarise(n=n()) %>%
+  ggplot(aes(x=order, y=n, fill=category)) + geom_bar(stat="identity", position="fill") + theme_bw() + facet_wrap(~n_analyzed_introns, scales="free_x") +
+  scale_fill_manual(values=cbPalette_long[9:16])
+
+ggsave("/path/to/plots/FigS4_splice_site_strength_vs_splicing_order_bar_plot.pdf",
+       width = 4,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+# stats
+
+both_df_cat_stats <- both_df_cat %>% group_by(n_analyzed_introns, order, category) %>% summarise(n=n()) %>% spread(category, n)
+
+print("triplets")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(both_df_cat_stats[1:2,c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(both_df_cat_stats[c(1,3),c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(both_df_cat_stats[2:3,c("strong","weak")])[[1]], sep=": "))
+
+print("quads")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(both_df_cat_stats[4:5,c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(both_df_cat_stats[c(4,6),c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", fisher.test(both_df_cat_stats[c(4,7),c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(both_df_cat_stats[5:6,c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", fisher.test(both_df_cat_stats[c(5,7),c("strong","weak")])[[1]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", fisher.test(both_df_cat_stats[6:7,c("strong","weak")])[[1]], sep=": "))
+
+```
+
+
+## Splicing order vs. splicing kinetics (TT-seq from Wachutka et al. 2019)
+
+```{r}
+
+# Load acceptor and donor bond half-lifes from Wachutka et al.
+wachutka_tmp <- read.table("/path/to/published_datasets/elife-45056-supp2", sep="\t", header=T)
+wachutka <- wachutka_tmp %>% filter(typ == "acceptor" | typ == "donor")
+
+# Get intron annotations
+hg38_intron_info = read.table("/path/to/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+hg38_intron_info$chrom <- paste("chr", hg38_intron_info$chrom, sep="")
+
+# Reformat dataframe
+fields = c("seqnames", "start", "strand", "typ", "half.life..min...const.rate.model")
+hg38_intron_info_wat <- hg38_intron_info %>% inner_join(wachutka[,fields], by=c("chrom"="seqnames","start","strand")) %>%
+  filter((strand == "+" & typ == "donor") | (strand == "-" & typ == "acceptor")) %>%
+  inner_join(wachutka[,fields], by=c("chrom"="seqnames","end"="start","strand")) %>%
+  filter((strand == "+" & typ.y == "acceptor") | (strand == "-" & typ.y == "donor")) %>%
+  mutate(donor_half_life = case_when(typ.x == "donor" ~ half.life..min...const.rate.model.x,
+                                     typ.x == "acceptor" ~ half.life..min...const.rate.model.y),
+         acceptor_half_life = case_when(typ.x == "acceptor" ~ half.life..min...const.rate.model.x,
+                                     typ.x == "donor" ~ half.life..min...const.rate.model.y)) %>%
+    dplyr::select(gene, intron_pos, donor_half_life, acceptor_half_life, strand) %>% distinct()
+
+hg38_intron_info_wat$intron_pos <- as.character(hg38_intron_info_wat$intron_pos)
+
+
+
+```
+
+
+```{r}
+
+# Get splicing order per intron in top ranked order
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info_wat, by=c("gene","intron_pos"))
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>%
+  inner_join(hg38_intron_info_wat, by=c("gene","intron_pos"))
+
+both_df <- rbind(triplets, quads) %>% distinct()
+
+```
+
+
+```{r}
+
+both_df %>% gather(SS, half_life, c("donor_half_life", "acceptor_half_life")) %>%
+  ggplot(aes(x=SS, y=half_life, fill=order)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=cbPalette_long[9:12]) + ggtitle("SS kinetics") + facet_wrap(~n_analyzed_introns) + ylab("bond half-life (min)")
+
+
+ggsave("/path/to/plots/FigS4_splicing_order_vs_acceptor_donor_bond_kinetics.pdf",
+       width = 6,
+    height = 3,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+# stats
+
+triplet_spliced1st <- filter(triplets, order == "intron1")
+triplet_spliced2nd <- filter(triplets, order == "intron2")
+triplet_spliced3rd <- filter(triplets, order == "intron3")
+
+quad_spliced1st <- filter(quads, order == "intron1")
+quad_spliced2nd <- filter(quads, order == "intron2")
+quad_spliced3rd <- filter(quads, order == "intron3")
+quad_spliced4th <- filter(quads, order == "intron4")
+
+print("donor_half_life triplets")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(triplet_spliced1st$donor_half_life, triplet_spliced2nd$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(triplet_spliced1st$donor_half_life, triplet_spliced3rd$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(triplet_spliced2nd$donor_half_life, triplet_spliced3rd$donor_half_life)[[3]], sep=": "))
+
+print("donor_half_life quads")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(quad_spliced1st$donor_half_life, quad_spliced2nd$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(quad_spliced1st$donor_half_life, quad_spliced3rd$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", wilcox.test(quad_spliced1st$donor_half_life, quad_spliced4th$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(quad_spliced2nd$donor_half_life, quad_spliced3rd$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", wilcox.test(quad_spliced2nd$donor_half_life, quad_spliced4th$donor_half_life)[[3]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", wilcox.test(quad_spliced3rd$donor_half_life, quad_spliced4th$donor_half_life)[[3]], sep=": "))
+
+print("acceptor_half_life triplets")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(triplet_spliced1st$acceptor_half_life, triplet_spliced2nd$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(triplet_spliced1st$acceptor_half_life, triplet_spliced3rd$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(triplet_spliced2nd$acceptor_half_life, triplet_spliced3rd$acceptor_half_life)[[3]], sep=": "))
+
+print("acceptor_half_life quads")
+print(paste("spliced 1st vs. spliced 2nd", wilcox.test(quad_spliced1st$acceptor_half_life, quad_spliced2nd$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", wilcox.test(quad_spliced1st$acceptor_half_life, quad_spliced3rd$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", wilcox.test(quad_spliced1st$acceptor_half_life, quad_spliced4th$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", wilcox.test(quad_spliced2nd$acceptor_half_life, quad_spliced3rd$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", wilcox.test(quad_spliced2nd$acceptor_half_life, quad_spliced4th$acceptor_half_life)[[3]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", wilcox.test(quad_spliced3rd$acceptor_half_life, quad_spliced4th$acceptor_half_life)[[3]], sep=": "))
+
+```
+
+
+## Comparison to features of detained introns
+
+```{r}
+
+# Genes expressed in K562 cells
+
+# Get exon RPKMs from total short-read RNA-seq in Drexler et al. 2020
+hg38_tot1_featureCounts_df = read.table('/path/to/tot_1_featureCount.txt', sep="\t", header=T)
+hg38_tot2_featureCounts_df = read.table('/path/to/tot_2_featureCount.txt', sep="\t", header=T)
+
+fields <- c("gene","exon_RPKM")
+
+# Filter for genes with RPKM > 1 in both replicates and then categorize by expression level
+K562_exon_expr <- inner_join(hg38_tot1_featureCounts_df[,fields], hg38_tot2_featureCounts_df[,fields], by="gene") %>% drop_na()
+K562_exon_expr$exon_RPKM.x <- as.numeric(K562_exon_expr$exon_RPKM.x)
+K562_exon_expr$exon_RPKM.y <- as.numeric(K562_exon_expr$exon_RPKM.y)
+K562_exon_expr$mean_RPKM <- rowMeans(K562_exon_expr[,c("exon_RPKM.x","exon_RPKM.y")])
+
+K562_exon_expr <- K562_exon_expr %>% filter(mean_RPKM > 1) %>%
+  mutate(RPKM_bin = case_when(mean_RPKM <= 10 ~ "RPKM<10",
+                              mean_RPKM > 10 & mean_RPKM <= 25 ~ "10<RPKM<25",
+                              mean_RPKM > 25 ~ "RPKM>25")) %>%
+  dplyr::select(gene, RPKM_bin) %>% distinct()
+
+
+K562_exon_expr$RPKM_bin <- factor(K562_exon_expr$RPKM_bin, levels=c("RPKM<10","10<RPKM<25","RPKM>25"))
+
+gene_names_df <- read.table("/path/to/annotation_files/hg38_UCSC_refGene_names.txt", sep="\t", header=F)
+colnames(gene_names_df) <- c("gene_name","gene_id")
+
+
+K562_exon_expr <- K562_exon_expr %>% separate(gene, c("gene_id", "id"), sep="\\.", remove=F) %>%
+  inner_join(gene_names_df, by="gene_id")
+
+```
+
+
+```{r}
+
+# Combine analyzed introns, expression level and intron features
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+hg38_intron_info = read.table("/path/to/hg38_all_intron_features_with_GC_and_BP_scores.txt", sep="\t", header=T)
+hg38_intron_info$chrom <- paste("chr", hg38_intron_info$chrom, sep="")
+hg38_intron_info$intron_pos <- as.character(hg38_intron_info$intron_pos)
+
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>% dplyr::select(gene, intron_pos)
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>% dplyr::select(gene, intron_pos)
+
+both_df <- rbind(triplets, quads) %>% distinct() %>% mutate(splicing_order = "yes") %>%
+  full_join(hg38_intron_info, by=c("gene","intron_pos")) %>%
+  mutate(analyzed = case_when(splicing_order == "yes" ~ "yes",
+                              is.na(splicing_order) ~ "no")) %>% 
+  distinct(chrom, start, end, strand, analyzed, .keep_all = T) %>%
+  inner_join(K562_exon_expr, by="gene")
+
+both_df %>%
+  ggplot(aes(x=RPKM_bin, y=intron_length, fill=analyzed)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=cbPalette_long)
+
+ggsave("/path/to/plots/FigS3_boxplot_intron_length_by_RPKM.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+  
+
+```
+
+
+```{r}
+
+both_df %>%
+  ggplot(aes(x=RPKM_bin, y=GC_content, fill=analyzed)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + 
+  scale_fill_manual(values=cbPalette_long)
+
+ggsave("/path/to/plots/FigS3_boxplot_GC_content_by_RPKM.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+both_df %>%
+  ggplot(aes(x=RPKM_bin, y=MaxEnt_score_5SS, fill=analyzed)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + 
+  scale_fill_manual(values=cbPalette_long) + ylim(0,16)
+
+ggsave("/path/to/plots/FigS3_boxplot_5SS_by_RPKM.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+```
+
+```{r}
+
+both_df %>%
+  ggplot(aes(x=RPKM_bin, y=MaxEnt_score_3SS, fill=analyzed)) + geom_boxplot(outlier.size = 0.5) + theme_bw() + 
+  scale_fill_manual(values=cbPalette_long) + ylim(0,18)
+
+ggsave("/path/to/plots/FigS3_boxplot_3SS_by_RPKM.pdf",
+       width = 4,
+    height = 3,
+    units = c("in"))
+
+
+
+```
+
+```{r}
+
+# stats
+
+analyzed_high <- both_df %>% filter(analyzed == "yes" & RPKM_bin == "RPKM>25")
+analyzed_med <- both_df %>% filter(analyzed == "yes" & RPKM_bin == "10<RPKM<25")
+analyzed_low <- both_df %>% filter(analyzed == "yes" & RPKM_bin == "RPKM<10")
+
+not_analyzed_high <- both_df %>% filter(analyzed == "no" & RPKM_bin == "RPKM>25")
+not_analyzed_med <- both_df %>% filter(analyzed == "no" & RPKM_bin == "10<RPKM<25")
+not_analyzed_low <- both_df %>% filter(analyzed == "no" & RPKM_bin == "RPKM<10")
+
+print("intron length")
+print(paste("high expression", wilcox.test(analyzed_high$intron_length, not_analyzed_high$intron_length)[[3]], sep=": "))
+print(paste("medium expression", wilcox.test(analyzed_med$intron_length, not_analyzed_med$intron_length)[[3]], sep=": "))
+print(paste("low expression", wilcox.test(analyzed_low$intron_length, not_analyzed_low$intron_length)[[3]], sep=": "))
+
+print("GC content")
+print(paste("high expression", wilcox.test(analyzed_high$GC_content, not_analyzed_high$GC_content)[[3]], sep=": "))
+print(paste("medium expression", wilcox.test(analyzed_med$GC_content, not_analyzed_med$GC_content)[[3]], sep=": "))
+print(paste("low expression", wilcox.test(analyzed_low$GC_content, not_analyzed_low$GC_content)[[3]], sep=": "))
+
+print("5'SS score")
+print(paste("high expression", wilcox.test(analyzed_high$MaxEnt_score_5SS, not_analyzed_high$MaxEnt_score_5SS)[[3]], sep=": "))
+print(paste("medium expression", wilcox.test(analyzed_med$MaxEnt_score_5SS, not_analyzed_med$MaxEnt_score_5SS)[[3]], sep=": "))
+print(paste("low expression", wilcox.test(analyzed_low$MaxEnt_score_5SS, not_analyzed_low$MaxEnt_score_5SS)[[3]], sep=": "))
+
+print("3'SS score")
+print(paste("high expression", wilcox.test(analyzed_high$MaxEnt_score_3SS, not_analyzed_high$MaxEnt_score_3SS)[[3]], sep=": "))
+print(paste("medium expression", wilcox.test(analyzed_med$MaxEnt_score_3SS, not_analyzed_med$MaxEnt_score_3SS)[[3]], sep=": "))
+print(paste("low expression", wilcox.test(analyzed_low$MaxEnt_score_3SS, not_analyzed_low$MaxEnt_score_3SS)[[3]], sep=": "))
+
+
+```
+
+
+```{r}
+
+# Plot expression level distribution for intron groups
+
+both_df %>% dplyr::select(gene_name, analyzed, RPKM_bin) %>% distinct() %>% group_by(analyzed, RPKM_bin) %>% summarise(n=n()) %>%
+  ggplot(aes(x=analyzed, y=n, fill=RPKM_bin)) + geom_bar(stat="identity", position="fill") + theme_bw() + scale_fill_viridis(discrete=T)
+
+
+ggsave("/path/to/plots/FigS2_RPKM_stacked_bar_plot.pdf",
+       width = 3,
+    height = 2.5,
+    units = c("in"))
+
+
+```
+
+
+## Overlap with previously identified detained introns
+
+Retrieve the annotations from Biomart:  
+```{r}
+mart = useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")#without further specifications this retrieves latest hg release (including patches). This is adequate
+
+geneID2name = getBM(attributes = c("ensembl_gene_id","external_gene_name","hgnc_symbol","hgnc_id","gene_biotype","description"),mart=mart)
+#sort first by ensID (to have gnsdf and geneID2name match transcripts), then assign new column
+
+
+```
+
+```{r}
+
+# Get gene quantifications from ENCODE for the cell lines used in Boutz et al. 2015 to identify detained introns and filter for genes with FPKM > 1
+
+HeLa_rep1 <- read.table("/path/to/published_datasets/HeLa_S3_rep1_gene_quantif_ENCFF217SNF.tsv", sep="\t", header=T)
+HeLa_rep2 <- read.table("/path/to/published_datasets/HeLa_S3_rep2_gene_quantif_ENCFF068HUH.tsv", sep="\t", header=T)
+
+HeLa_rep1 <- HeLa_rep1 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+HeLa_rep2 <- HeLa_rep2 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+
+HeLa_expr <- inner_join(HeLa_rep1, HeLa_rep2, by=c("ensembl_gene_id", "external_gene_name")) %>% dplyr::select(external_gene_name) %>% distinct()
+
+
+HepG2_rep1 <- read.table("/path/to/published_datasets/HepG2_rep1_gene_quantif_ENCFF168QKW.tsv", sep="\t", header=T)
+HepG2_rep2 <- read.table("/path/to/published_datasets/HepG2_rep2_gene_quantif_ENCFF831QQF.tsv", sep="\t", header=T)
+
+HepG2_rep1 <- HepG2_rep1 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+HepG2_rep2 <- HepG2_rep2 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+
+HepG2_expr <- inner_join(HepG2_rep1, HepG2_rep2, by=c("ensembl_gene_id", "external_gene_name")) %>% dplyr::select(external_gene_name) %>% distinct()
+
+
+ESC_rep1 <- read.table("/path/to/published_datasets/hESC_rep1_ENCFF321HCT.tsv", sep="\t", header=T)
+ESC_rep2 <- read.table("/path/to/published_datasets/hESC_rep2_ENCFF736CCO.tsv", sep="\t", header=T)
+
+ESC_rep1 <- ESC_rep1 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+ESC_rep2 <- ESC_rep2 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+
+ESC_expr <- inner_join(ESC_rep1, ESC_rep2, by=c("ensembl_gene_id", "external_gene_name")) %>% dplyr::select(external_gene_name) %>% distinct()
+
+
+HUVEC_rep1 <- read.table("/path/to/published_datasets/HUVEC_rep1_ENCFF770MAV.tsv", sep="\t", header=T)
+HUVEC_rep2 <- read.table("/path/to/published_datasets/HUVEC_rep2_ENCFF779OCC.tsv", sep="\t", header=T)
+
+HUVEC_rep1 <- HUVEC_rep1 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+HUVEC_rep2 <- HUVEC_rep2 %>% filter(grepl("ENSG", gene_id)) %>% separate(gene_id, c("ensembl_gene_id"), sep="\\.", remove=F, extra="drop") %>%
+  inner_join(geneID2name, by="ensembl_gene_id") %>% filter(FPKM > 1) %>% dplyr::select(ensembl_gene_id, external_gene_name, FPKM)
+
+HUVEC_expr <- inner_join(HUVEC_rep1, HUVEC_rep2, by=c("ensembl_gene_id", "external_gene_name")) %>% dplyr::select(external_gene_name) %>% distinct()
+
+
+
+
+```
+
+```{r}
+
+# Make a list of expressed genes across all datasets
+
+expressed_genes_Boutz <- rbind(HeLa_expr, HepG2_expr, ESC_expr, HUVEC_expr) %>% distinct()
+
+```
+
+```{r}
+
+# Get splicing orders from HeLa cells
+
+HeLa_paths <- read.table("/path/to/HeLa_splicing_order_paths_reps_merged_nodup.txt", sep="\t", header=T)
+
+
+HeLa_triplets <- HeLa_paths %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>% dplyr::select(gene, intron_pos) %>%
+  distinct() %>% mutate(splicing_order = "yes") %>%
+  full_join(hg38_intron_info, by=c("gene","intron_pos")) %>% 
+  mutate(analyzed = case_when(splicing_order == "yes" ~ "yes",
+                              is.na(splicing_order) ~ "no")) %>% 
+  distinct(chrom, start, end, strand, analyzed, .keep_all = T) %>% 
+  separate(gene, c("gene_id","id"), sep="\\.", remove=F) %>%
+  inner_join(gene_names_df, by="gene_id") %>%
+  filter(gene_name %in% HeLa_expr$external_gene_name) %>% 
+  dplyr::select(gene, gene_name, chrom, start, end, strand, intron_pos, analyzed) %>% mutate(cell_type = "HeLa")
+
+```
+
+
+
+```{r}
+
+# Get detained introns from Boutz et al. (2015)
+
+boutz <- read.table("/path/to/published_datasets/Boutz_2015_supp_29.1.63_Supplemental_DataS2_hg38.bed", sep="\t", header=F)
+colnames(boutz) <- c("chrom","start","end","gene_name","score","strand")
+
+# Make list of genes with detained introns
+genes_with_DI <- both_df %>% left_join(boutz, by=c("chrom","start","end","strand")) %>%
+  mutate(DI = case_when(is.na(score) ~ "no",
+                        !is.na(score) ~ "yes")) %>%
+  filter(DI == "yes") %>%
+  dplyr::select(gene_name.x) %>% distinct()
+
+# Cross analyzed introns in splicing order analysis and detained introns
+both_df %>% 
+  dplyr::select(gene, gene_name, chrom, start, end, strand, intron_pos, analyzed) %>% mutate(cell_type = "K562") %>%
+  rbind(HeLa_triplets) %>%
+  left_join(boutz, by=c("chrom","start","end","strand")) %>%
+  mutate(DI = case_when(is.na(score) ~ "no",
+                        !is.na(score) ~ "yes")) %>%
+  inner_join(expressed_genes_Boutz, by=c("gene_name.x"="external_gene_name")) %>%
+  dplyr::select(cell_type, chrom, start, end, strand, analyzed, DI, gene_name.x) %>% distinct() %>%
+  group_by(cell_type, analyzed, DI) %>% summarise(n=n()) %>%
+  unite(analyzed_DI, c("analyzed", "DI"), sep=",") %>% filter(analyzed_DI != "no,no") %>%
+  ggplot(aes(x=cell_type, y=n, fill=analyzed_DI)) + geom_bar(stat="identity", position="fill") + theme_bw() +
+  scale_fill_manual(values=c(cbPalette_long[16],cbPalette_long[2],cbPalette_long[15]))
+
+ggsave("/path/to/plots/FigS3_DI_intersection_other_cell_lines.pdf",
+       width = 2.5,
+    height = 2,
+    units = c("in"))
+
+```
+
+```{r}
+
+# Analyze the number of DI and non-DI introns per gene
+
+both_df %>%
+  dplyr::select(gene, gene_name, chrom, start, end, strand, intron_pos, analyzed) %>% mutate(cell_type = "K562") %>%
+  rbind(HeLa_triplets) %>%
+  left_join(boutz, by=c("chrom","start","end","strand")) %>%
+  filter(gene_name.x %in% genes_with_DI$gene_name.x) %>%
+  mutate(DI = case_when(is.na(score) ~ "no",
+                        !is.na(score) ~ "yes")) %>% 
+  filter(analyzed == "yes") %>%
+  group_by(cell_type, gene_name.x, DI) %>% summarise(n=n()) %>%
+  ggplot(aes(x=n, color=DI)) + theme_bw() + stat_ecdf() + scale_fill_manual(values=cbPalette_long[9:12]) + ylim(0,1) + ylab("proportion of genes") +
+  xlab("number of analyzed introns in gene") + scale_color_manual(values=cbPalette_long) + facet_wrap(~cell_type, ncol=1)
+
+
+ggsave("/path/to/plots/FigS3_DI_number_in_genes.pdf",
+       width = 3.5,
+    height = 4,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+# Get splicing order per intron for top ranked splicing order in K562 cells
+
+path_df_reprod_top <- path_df_reprod %>% filter(rank_x == 1)
+
+triplets <- path_df_reprod_top %>% filter(n_analyzed_introns == 3) %>% separate(full_path, c("intron1", "intron2", "intron3"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3")) %>%
+  inner_join(hg38_intron_info, by=c("gene","intron_pos"))
+
+quads <- path_df_reprod_top %>% filter(n_analyzed_introns == 4) %>% separate(full_path, c("intron1", "intron2", "intron3", "intron4"), sep="->") %>%
+  gather(order, intron_pos, c("intron1", "intron2", "intron3", "intron4")) %>%
+  inner_join(hg38_intron_info, by=c("gene","intron_pos"))
+
+both_df <- rbind(triplets, quads) %>% distinct()
+
+```
+
+
+```{r}
+
+# Compare splicing order and detained introns
+
+both_df %>% left_join(boutz, by=c("chrom","start","end","strand")) %>%
+  mutate(DI = case_when(is.na(score) ~ "no",
+                        !is.na(score) ~ "yes")) %>%
+  inner_join(expressed_genes_Boutz, by=c("gene_name.x"="external_gene_name")) %>%
+  dplyr::select(chrom, start, end, strand, n_analyzed_introns, order, DI) %>% distinct() %>%
+  group_by(n_analyzed_introns, DI, order) %>% summarise(n=n()) %>%
+  ggplot(aes(x=order, y=n, fill=DI)) + geom_bar(stat="identity", position="fill") + theme_bw() + facet_wrap(~n_analyzed_introns, scales="free_x") +
+  scale_fill_manual(values=cbPalette_long[9:12])
+
+
+
+ggsave("/path/to/plots/FigS3_DI_vs_splicing_order_stacked_bar_plot.pdf",
+       width = 3.5,
+    height = 2,
+    units = c("in"))
+
+
+
+```
+
+
+```{r}
+
+# stats
+
+both_df_DI_stats <- both_df %>% left_join(boutz, by=c("chrom","start","end","strand")) %>%
+  mutate(DI = case_when(is.na(score) ~ "no",
+                        !is.na(score) ~ "yes")) %>%
+  inner_join(expressed_genes_Boutz, by=c("gene_name.x"="external_gene_name")) %>%
+  dplyr::select(chrom, start, end, strand, n_analyzed_introns, order, DI) %>% distinct() %>%
+  group_by(n_analyzed_introns, DI, order) %>% summarise(n=n()) %>% spread(DI, n)
+
+print("triplets")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(both_df_DI_stats[1:2,c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(both_df_DI_stats[c(1,3),c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(both_df_DI_stats[2:3,c("yes","no")])[[1]], sep=": "))
+
+print("quads")
+print(paste("spliced 1st vs. spliced 2nd", fisher.test(both_df_DI_stats[4:5,c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 3rd", fisher.test(both_df_DI_stats[c(4,6),c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 1st vs. spliced 4th", fisher.test(both_df_DI_stats[c(4,7),c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 3rd", fisher.test(both_df_DI_stats[5:6,c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 2nd vs. spliced 4th", fisher.test(both_df_DI_stats[c(5,7),c("yes","no")])[[1]], sep=": "))
+print(paste("spliced 3rd vs. spliced 4th", fisher.test(both_df_DI_stats[6:7,c("yes","no")])[[1]], sep=": "))
+
+```
+
+
+
+## Splicing order simulations for coverage thresholds
+
+```{r}
+
+# Load simulations done in python
+sim_df <- read.table("/path/to/splicing_order_simulations_for_coverage.txt", sep="\t", header=T)
+
+# Compute 95% confidence interval for groups of 3 introns
+sim_df_triplets <- sim_df %>% filter(n_introns == 3) %>%
+  group_by(probs, read_count, full_path) %>%
+  summarise(avg = mean(full_path_score),
+            SD = sd(full_path_score),
+            n = n()) %>% filter(n > 1) %>%
+  mutate(SE = SD / sqrt(n),
+         lower.ci = avg - qt(1 - (0.05 / 2), n - 1) * SE,
+         upper.ci = avg + qt(1 - (0.05 / 2), n - 1) * SE)
+
+sim_df_triplets %>%
+  ggplot(aes(x=read_count, y=avg, fill=full_path)) + geom_ribbon(aes(ymin=lower.ci, ymax=upper.ci, group=full_path), alpha=0.4) + geom_line(aes(color=full_path)) + facet_wrap(~probs) + theme_bw() +
+  ylim(0,1) + scale_color_manual(values=cbPalette_long) + ggtitle("3 introns") + scale_fill_manual(values=cbPalette_long) + ylab("splicing order score")
+
+ggsave("/path/to/plots/FigS3_splicing_order_simulations_3_introns.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+
+```
+
+
+
+```{r}
+
+# Compute 95% confidence interval for groups of 4 introns
+
+sim_df_quads <- sim_df %>% filter(n_introns == 4) %>%
+  group_by(probs, read_count, full_path) %>%
+  summarise(avg = mean(full_path_score),
+            SD = sd(full_path_score),
+            n = n()) %>% filter(n > 1) %>%
+  mutate(SE = SD / sqrt(n),
+         lower.ci = avg - qt(1 - (0.05 / 2), n - 1) * SE,
+         upper.ci = avg + qt(1 - (0.05 / 2), n - 1) * SE)
+
+sim_df_quads %>%
+  ggplot(aes(x=read_count, y=avg, fill=full_path)) + geom_ribbon(aes(ymin=lower.ci, ymax=upper.ci, group=full_path), alpha=0.4) + geom_line(aes(color=full_path)) + facet_wrap(~probs) + theme_bw() +
+  ylim(0,1) + scale_color_manual(values=cbPalette_extra_long) + ggtitle("4 introns") + scale_fill_manual(values=c(cbPalette_extra_long)) + ylab("splicing order score")
+
+ggsave("/path/to/plots/FigS3_splicing_order_simulations_4_introns.pdf",
+       width = 7,
+    height = 3.5,
+    units = c("in"))
+
+
+```
+
+
+
+
+
+

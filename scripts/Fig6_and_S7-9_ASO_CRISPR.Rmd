@@ -1,0 +1,1030 @@
+---
+title: "Fig6_and_S7-9_splicing_order_paper"
+author: "Karine Choquet"
+date: '2021-06-01'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, echo = FALSE, message = FALSE, warning = FALSE}
+
+knitr::opts_chunk$set(message = FALSE,        # Hide messages/warnings/errors from loading packages
+                      warning = FALSE,
+                      error = FALSE,
+                      cache = TRUE,
+                      fig.keep = TRUE,
+                      dev="pdf",
+                      fig.path = "figures/")           # By default, cache results to avoid re-running
+                                              # super long things every time you knit
+                      
+```
+
+
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gplots)
+library(RColorBrewer)
+library(mosaic)
+library(stringr)
+library(viridis)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+getPalette1 <- colorRampPalette(brewer.pal(8, "Dark2"))
+getPalette2 <- colorRampPalette(brewer.pal(8, "Set2"))
+cbPalette_long <- c(getPalette1(8), getPalette2(8))
+
+cbPalette_HeLa <- c("#555555", "#999999", "#CCCCCC","#339900", "#009E73", "#9966CC","#660099")
+#cbPalette_HeLa <- c("#555555",  "#999999", "#009E73","#9966CC")
+cbPalette1 <- c("#999999","#009E73", "#9966CC")
+#cbPalette2 <- c("#009E73","#E69F00","#56B4E9","#CC79A7", "#0072B2", "#D55E00", "#F0E442")
+cbPalette_coOcc <- c("#D55E00", "#56B4E9", "#0072B2", "#999999")
+cbPalette_ASO_and_KD_IFRD2 <- c("#999999", cbPalette_long[1],cbPalette_long[3], "#CCCCCC", cbPalette_long[2], cbPalette_long[4:7], cbPalette_long[9:10])
+cbPalette_KD_and_ASO_and_CRISPR_IFRD2 <- c("#999999", cbPalette_long[1],cbPalette_long[3], "#CCCCCC", cbPalette_long[2], cbPalette_long[4:7], cbPalette_long[9:10],cbPalette_long[15:16], cbPalette_long[11:14])
+
+safe_colorblind_palette <- c("#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499", 
+                             "#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888",
+                             "#CC79A7", "#0072B2", "#D55E00")
+
+
+getPalette <-  colorRampPalette(brewer.pal(3, "Blues"))
+cbPalette_Blues <- getPalette(3)
+
+getPalette <-  colorRampPalette(brewer.pal(5, "Reds"))
+cbPalette_Reds <- getPalette(5)
+
+getPalette <-  colorRampPalette(brewer.pal(3, "Purples"))
+cbPalette_Purples <- getPalette(3)
+
+```
+
+
+
+# ASOs against IFRD2
+
+```{r}
+
+# gene name correspondance
+gene_names_df = read.table('/path/to/annotation_files/hg38_UCSC_refGene_names.txt', sep="\t", header=F)
+colnames(gene_names_df) = c('gene_name','gene_id')
+
+```
+
+```{r}
+
+# Import multi_introns_df that were computed on O2
+
+ASO_neg_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode01_ASO_HBB_IFRD2_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode02_ASO_IFRD2_int4_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int5_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode03_ASO_IFRD2_int5_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int9_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode04_ASO_IFRD2_int9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_5_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode05_ASO_IFRD2_int4-5_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_9_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode06_ASO_IFRD2_int4-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int5_9_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode07_ASO_IFRD2_int5-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_5_9_multi_introns_df1 = read.table('/path/to/HeLa_ASO_totalRNA_barcode08_ASO_IFRD2_int4-5-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)
+
+
+ASO_neg_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode01_IFRD2_HBB_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode02_IFRD2_int4_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int5_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode03_IFRD2_int5_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int9_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode04_IFRD2_int9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_5_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode05_IFRD2_int4-5_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_9_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode07_IFRD2_int4-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int5_9_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode06_IFRD2_int5-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)   
+ASO_int4_5_9_multi_introns_df2 = read.table('/path/to/HeLa_ASO_barcode08_IFRD2_int4-5-9_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors=F)
+
+ASO_neg_multi_introns_df1$sample_name = "neg,rep1"
+ASO_int4_multi_introns_df1$sample_name = "int4,rep1"
+ASO_int5_multi_introns_df1$sample_name = "int5,rep1"
+ASO_int9_multi_introns_df1$sample_name = "int9,rep1"
+ASO_int4_5_multi_introns_df1$sample_name = "int4-5,rep1"
+ASO_int4_9_multi_introns_df1$sample_name = "int4-9,rep1"
+ASO_int5_9_multi_introns_df1$sample_name = "int5-9,rep1"
+ASO_int4_5_9_multi_introns_df1$sample_name = "int4-5-9,rep1"
+
+ASO_neg_multi_introns_df2$sample_name = "neg,rep2"
+ASO_int4_multi_introns_df2$sample_name = "int4,rep2"
+ASO_int5_multi_introns_df2$sample_name = "int5,rep2"
+ASO_int9_multi_introns_df2$sample_name = "int9,rep2"
+ASO_int4_5_multi_introns_df2$sample_name = "int4-5,rep2"
+ASO_int4_9_multi_introns_df2$sample_name = "int4-9,rep2"
+ASO_int5_9_multi_introns_df2$sample_name = "int5-9,rep2"
+ASO_int4_5_9_multi_introns_df2$sample_name = "int4-5-9,rep2"
+
+
+# Concatenate all samples
+multi_introns_df = rbind(ASO_neg_multi_introns_df1,ASO_int4_multi_introns_df1,ASO_int5_multi_introns_df1,
+                                 ASO_int9_multi_introns_df1,ASO_int4_5_multi_introns_df1,ASO_int4_9_multi_introns_df1,
+                                 ASO_int5_9_multi_introns_df1,ASO_int4_5_9_multi_introns_df1,
+                          ASO_neg_multi_introns_df2,ASO_int4_multi_introns_df2,ASO_int5_multi_introns_df2,
+                                 ASO_int9_multi_introns_df2,ASO_int4_5_multi_introns_df2,ASO_int4_9_multi_introns_df2,
+                                 ASO_int5_9_multi_introns_df2,ASO_int4_5_9_multi_introns_df2)
+
+# Reorganize dataframe
+multi_introns_df = multi_introns_df %>% separate(sample_name, c("target", "replicate"), sep=",", remove=F) %>%
+  separate(gene, c("gene_id", "number"), sep="\\.", remove=F) %>%
+  left_join(gene_names_df, by="gene_id") %>% filter(gene_name == "IFRD2" & intron_numbers == "7_6_5_4_3_2")
+
+
+
+#####################
+
+
+
+
+
+
+```
+
+
+
+```{r}
+
+# Functions to obtain the intron numbers that undergo AS
+
+define_AS <- function(intron_numbers, splice_status){
+  
+  # Splice splice status into a vector
+  split_splice = unlist(strsplit(splice_status, "_"))
+  split_intron_numbers = unlist(strsplit(intron_numbers, "_"))
+  
+  # Count the number of occurrences of each splice status
+  skipped_count = sum(grepl("SKP", split_splice))
+  skipped_count_3SS = sum(split_splice == "SKP3SS")
+  skipped_count_5SS = sum(split_splice == "SKP5SS")
+  unspliced_count = sum(split_splice == "NO")
+  spliced_count = sum(split_splice == "YES")
+  undetermined_count = sum(split_splice == "UND")
+  total_count = length(split_splice)
+  
+  # Replace the SKP3SS and SKP5SS by just SKP
+  split_splice = replace(split_splice, split_splice=="SKP3SS", "SKP")
+  split_splice = replace(split_splice, split_splice=="SKP5SS", "SKP")
+  
+  split_splice_join = paste(split_splice, collapse="_")
+  
+  if (skipped_count_3SS == skipped_count_5SS & skipped_count_3SS >= 1){
+    skipped_introns_indices = which(split_splice %in% "SKP")
+    skipped_introns_list = split_intron_numbers[skipped_introns_indices]
+    skipped_introns_join = paste(c("SE", paste(skipped_introns_list[2:length(skipped_introns_list)], collapse="-")), collapse="_")
+    
+    if (unspliced_count > 0){
+      unspliced_introns_indices = which(split_splice %in% "NO")
+      unspliced_introns_list = split_intron_numbers[unspliced_introns_indices]
+      unspliced_introns_join = paste(c("RI", paste(unspliced_introns_list, collapse="-")), collapse="_")
+      
+      AS_list_join = paste(c(skipped_introns_join, unspliced_introns_join), collapse="__")
+    } else{
+      AS_list_join = skipped_introns_join
+    }
+  }
+    
+  
+  else if (skipped_count_3SS != skipped_count_5SS & undetermined_count > 0){
+    skipped_introns_indices = which(split_splice %in% "SKP")
+    skipped_introns_list = split_intron_numbers[skipped_introns_indices]
+    skipped_introns_join = paste(c("SKP", paste(skipped_introns_list, collapse="-")), collapse="_")
+    
+    und_introns_indices = which(split_splice %in% "UND")
+    und_introns_list = split_intron_numbers[und_introns_indices]
+    und_introns_join = paste(c("UND", paste(und_introns_list, collapse="-")), collapse="_")
+    
+    if (unspliced_count > 0){
+      unspliced_introns_indices = which(split_splice %in% "NO")
+      unspliced_introns_list = split_intron_numbers[unspliced_introns_indices]
+      unspliced_introns_join = paste(c("RI", paste(unspliced_introns_list, collapse="-")), collapse="_")
+      
+      AS_list_join = paste(c(skipped_introns_join, und_introns_join, unspliced_introns_join), collapse="__")
+    } else{
+      AS_list_join = paste(c(skipped_introns_join, und_introns_join), collapse="__")
+    }
+  }
+    
+  else if (skipped_count_3SS == skipped_count_5SS & skipped_count_3SS == 0){
+    if (unspliced_count == total_count){
+      AS_list_join = "all_unspliced"
+    }
+    else if (unspliced_count > 0 & unspliced_count < total_count){
+      unspliced_introns_indices = which(split_splice %in% "NO")
+      unspliced_introns_list = split_intron_numbers[unspliced_introns_indices]
+      unspliced_introns_join = paste(c("RI", paste(unspliced_introns_list, collapse="-")), collapse="_")
+      AS_list_join = unspliced_introns_join
+    } else{
+      AS_list_join = "all_spliced"
+    }
+  } 
+    
+  else{
+    AS_list_join = "undetermined"
+  }
+    
+  return(AS_list_join)
+}
+
+
+define_SE <- function(intron_numbers, splice_status){
+  
+  # Splice splice status into a vector
+  split_splice = unlist(strsplit(splice_status, "_"))
+  split_intron_numbers = unlist(strsplit(intron_numbers, "_"))
+  
+  # Count the number of occurrences of each splice status
+  skipped_count = sum(grepl("SKP", split_splice))
+  skipped_count_3SS = sum(split_splice == "SKP3SS")
+  skipped_count_5SS = sum(split_splice == "SKP5SS")
+  unspliced_count = sum(split_splice == "NO")
+  spliced_count = sum(split_splice == "YES")
+  undetermined_count = sum(split_splice == "UND")
+  total_count = length(split_splice)
+  
+  # Replace the SKP3SS and SKP5SS by just SKP
+  split_splice = replace(split_splice, split_splice=="SKP3SS", "SKP")
+  split_splice = replace(split_splice, split_splice=="SKP5SS", "SKP")
+  
+  split_splice_join = paste(split_splice, collapse="_")
+  
+  if (skipped_count_3SS == skipped_count_5SS & skipped_count_3SS >= 1){
+    skipped_introns_indices = which(split_splice %in% "SKP")
+    skipped_introns_list = split_intron_numbers[skipped_introns_indices]
+    skipped_introns_join = paste(c("SE", paste(skipped_introns_list[2:length(skipped_introns_list)], collapse="-")), collapse="_")
+    
+    AS_list_join = skipped_introns_join
+  }
+  
+  
+    else if (skipped_count_3SS != skipped_count_5SS & undetermined_count > 0){
+    skipped_introns_indices = which(split_splice %in% "SKP")
+    skipped_introns_list = split_intron_numbers[skipped_introns_indices]
+    skipped_introns_join = paste(c("SKP", paste(skipped_introns_list, collapse="-")), collapse="_")
+    
+    und_introns_indices = which(split_splice %in% "UND")
+    und_introns_list = split_intron_numbers[und_introns_indices]
+    und_introns_join = paste(c("UND", paste(und_introns_list, collapse="-")), collapse="_")
+    
+    if (unspliced_count > 0){
+      unspliced_introns_indices = which(split_splice %in% "NO")
+      unspliced_introns_list = split_intron_numbers[unspliced_introns_indices]
+      unspliced_introns_join = paste(c("RI", paste(unspliced_introns_list, collapse="-")), collapse="_")
+      
+      AS_list_join = paste(c(skipped_introns_join, und_introns_join, unspliced_introns_join), collapse="__")
+    } else{
+      AS_list_join = paste(c(skipped_introns_join, und_introns_join), collapse="__")
+    }
+  }
+  
+  else if (skipped_count_3SS != skipped_count_5SS & undetermined_count == 0){
+    AS_list_join = "undetermined"
+  }
+    
+  else{
+    AS_list_join = "no_SE"
+  }
+    
+  return(AS_list_join)
+}
+
+
+
+define_RI <- function(intron_numbers, splice_status){
+  
+  # Splice splice status into a vector
+  split_splice = unlist(strsplit(splice_status, "_"))
+  split_intron_numbers = unlist(strsplit(intron_numbers, "_"))
+  
+  # Count the number of occurrences of each splice status
+  skipped_count = sum(grepl("SKP", split_splice))
+  skipped_count_3SS = sum(split_splice == "SKP3SS")
+  skipped_count_5SS = sum(split_splice == "SKP5SS")
+  unspliced_count = sum(split_splice == "NO")
+  spliced_count = sum(split_splice == "YES")
+  total_count = length(split_splice)
+  
+  if (unspliced_count > 0){
+    unspliced_introns_indices = which(split_splice %in% "NO")
+    unspliced_introns_list = split_intron_numbers[unspliced_introns_indices]
+    unspliced_introns_join = paste(c("RI", paste(unspliced_introns_list, collapse="-")), collapse="_")
+      
+    AS_list_join = unspliced_introns_join
+
+    } 
+  else if (unspliced_count == total_count){
+    AS_list_join = "all_unspliced"
+  }
+  else{
+      AS_list_join = "all_spliced"
+    }
+
+  return(AS_list_join)
+}
+
+
+
+```
+
+
+```{r}
+
+# Identify AS events
+multi_introns_counts <- multi_introns_df %>% 
+  mutate(intron_numbers = replace(intron_numbers, intron_numbers == "7_6_5_4_3_2", "4_5_6_7_8_9")) %>%
+  rowwise() %>%
+  mutate(AS = define_AS(intron_numbers, splice_status), SE = define_SE(intron_numbers, splice_status), RI = define_RI(intron_numbers, splice_status))
+
+# Normalize number of reads
+multi_introns_counts_AS <- multi_introns_counts %>%
+  group_by(target, replicate, AS, RI, SE) %>% summarise(sum_count=sum(count)) %>% group_by(target, replicate) %>% mutate(norm_counts=sum_count/(sum(sum_count)/100))
+
+
+```
+
+
+```{r}
+
+# AS patterns
+
+multi_introns_counts_AS$target <- factor(multi_introns_counts_AS$target, levels=c("neg","int4", "int5","int9","int4-5",
+                                                                    "int4-9","int5-9","int4-5-9"))
+
+multi_introns_counts_AS %>% filter((AS != "all_spliced" & AS != "all_unspliced" & norm_counts > 1 & AS != "undetermined" & !grepl("UND", AS)) | AS == "RI_9" | AS == "SE_5-6-7-8__RI_9") %>%
+  ggplot(aes(x=target, y=norm_counts, fill=AS)) + geom_bar(stat="identity", position="stack") + facet_wrap(~replicate) + theme_bw() + 
+  scale_fill_manual(values=cbPalette_long) + theme(axis.text.x=element_text(angle = 90))
+
+ggsave("/path/to/plots/FigS9_AS_patterns_ASOs.pdf",
+       width = 5,
+    height = 2.5,
+    units = c("in"))
+
+
+
+```
+
+
+
+```{r}
+
+# Select AS patterns of interest for IFRD2
+
+multi_introns_counts_AS$target <- factor(multi_introns_counts_AS$target, levels=c("neg","int9",
+                                                                    "int4-9","int5-9","int4", "int5", "int4-5","int4-5-9"))
+
+# Retention of intron 9 and skipping of exons 5-8
+IFRD2_per_sample1 <- multi_introns_counts_AS %>% 
+  mutate(pattern = case_when(grepl("RI_9", AS) ~ "Intron 9 retention",
+                             grepl("SE_5-6-7-8", AS) ~ "Skipping of exons 5-8")) %>% drop_na() %>%
+  group_by(target, replicate, pattern) %>% summarise(value = sum(norm_counts))
+
+# Retention of intron 9 only
+IFRD2_per_sample2 <- multi_introns_counts_AS %>% filter(grepl("RI_9", RI)) %>% 
+  mutate(pattern = case_when(SE == "no_SE" ~ "RI_only",
+                              grepl("SE_5-6-7-8", SE) ~ "SE_RI")) %>% drop_na() %>%
+  group_by(target, replicate, pattern) %>% summarise(counts_tot = sum(sum_count)) %>%
+  spread(pattern, counts_tot) %>% mutate(value = SE_RI / RI_only) %>% mutate(pattern = "fold change") %>% dplyr::select(target, replicate, pattern, value)
+
+IFRD2_per_sample <- rbind(IFRD2_per_sample1, IFRD2_per_sample2)
+IFRD2_per_sample$pattern <- factor(IFRD2_per_sample$pattern, levels=c("Intron 9 retention","Skipping of exons 5-8","fold change"))
+
+IFRD2_avg <- IFRD2_per_sample %>% group_by(target, pattern) %>% summarise(avg = mean(value))
+IFRD2_avg$pattern <- factor(IFRD2_avg$pattern, levels=c("Intron 9 retention","Skipping of exons 5-8","fold change"))
+  
+IFRD2_avg %>%
+  ggplot(aes(x=target, y=avg, fill=target)) + geom_bar(stat="identity", position="dodge") + theme_bw() + facet_wrap(~pattern, ncol=1, scales="free_y") +
+  geom_point(data=IFRD2_per_sample, aes(x=target, y=value, color=replicate), size=2) + scale_fill_manual(values=c("#CCCCCC", cbPalette_Blues, cbPalette_Reds[2:4], cbPalette_Purples[3])) +
+  xlab("ASO") + ylab("reads per 10K reads") + scale_color_manual(values=c("#000000","#999999"))
+
+ggsave("/path/to/plots/Fig6_ASO_AS_patterns.pdf",
+       width = 5,
+    height = 3,
+    units = c("in"))
+  
+
+```
+
+```{r}
+
+# stats rep1
+
+stats_rep1_int9 <- multi_introns_counts_AS %>% filter(replicate == "rep1") %>%
+  mutate(pattern = case_when(grepl("RI_9", AS) ~ "RI_9",
+                             TRUE ~ "other")) %>%
+  group_by(target, pattern) %>% summarise(value = sum(sum_count)) %>% spread(pattern, value) %>% mutate(freq = RI_9 / (RI_9 + other))
+
+
+print(paste("neg vs. int9", fisher.test(stats_rep1_int9[c(1,2),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-9", fisher.test(stats_rep1_int9[c(1,3),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int5-9", fisher.test(stats_rep1_int9[c(1,4),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4", fisher.test(stats_rep1_int9[c(1,5),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int5", fisher.test(stats_rep1_int9[c(1,6),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5", fisher.test(stats_rep1_int9[c(1,7),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5-9", fisher.test(stats_rep1_int9[c(1,8),c("RI_9","other")])[[1]], sep=": "))
+
+```
+
+```{r}
+
+# stats rep2
+
+stats_rep2_int9 <- multi_introns_counts_AS %>% filter(replicate == "rep2") %>%
+  mutate(pattern = case_when(grepl("RI_9", AS) ~ "RI_9",
+                             TRUE ~ "other")) %>%
+  group_by(target, pattern) %>% summarise(value = sum(sum_count)) %>% spread(pattern, value) %>% mutate(freq = RI_9 / (RI_9 + other))
+
+
+print(paste("neg vs. int9", fisher.test(stats_rep2_int9[c(1,2),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-9", fisher.test(stats_rep2_int9[c(1,3),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int5-9", fisher.test(stats_rep2_int9[c(1,4),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4", fisher.test(stats_rep2_int9[c(1,5),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int5", fisher.test(stats_rep2_int9[c(1,6),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5", fisher.test(stats_rep2_int9[c(1,7),c("RI_9","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5-9", fisher.test(stats_rep2_int9[c(1,8),c("RI_9","other")])[[1]], sep=": "))
+
+```
+
+```{r}
+
+# stats rep1
+
+stats_rep1_SE <- multi_introns_counts_AS %>% filter(replicate == "rep1") %>%
+  mutate(pattern = case_when(grepl("SE_5-6-7-8", AS) ~ "SE_5_6_7_8",
+                             TRUE ~ "other")) %>%
+  group_by(target, pattern) %>% summarise(value = sum(sum_count)) %>% spread(pattern, value) %>% mutate(freq = SE_5_6_7_8 / (SE_5_6_7_8 + other))
+
+
+print(paste("neg vs. int9", fisher.test(stats_rep1_SE[c(1,2),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-9", fisher.test(stats_rep1_SE[c(1,3),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int5-9", fisher.test(stats_rep1_SE[c(1,4),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4", fisher.test(stats_rep1_SE[c(1,5),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int5", fisher.test(stats_rep1_SE[c(1,6),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5", fisher.test(stats_rep1_SE[c(1,7),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5-9", fisher.test(stats_rep1_SE[c(1,8),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+
+```
+
+```{r}
+
+# stats rep2
+
+stats_rep2_SE <- multi_introns_counts_AS %>% filter(replicate == "rep2") %>%
+  mutate(pattern = case_when(grepl("SE_5-6-7-8", AS) ~ "SE_5_6_7_8",
+                             TRUE ~ "other")) %>%
+  group_by(target, pattern) %>% summarise(value = sum(sum_count)) %>% spread(pattern, value) %>% mutate(freq = SE_5_6_7_8 / (SE_5_6_7_8 + other))
+
+
+print(paste("neg vs. int9", fisher.test(stats_rep2_SE[c(1,2),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-9", fisher.test(stats_rep2_SE[c(1,3),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int5-9", fisher.test(stats_rep2_SE[c(1,4),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4", fisher.test(stats_rep2_SE[c(1,5),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int5", fisher.test(stats_rep2_SE[c(1,6),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5", fisher.test(stats_rep2_SE[c(1,7),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+print(paste("neg vs. int4-5-9", fisher.test(stats_rep2_SE[c(1,8),c("SE_5_6_7_8","other")])[[1]], sep=": "))
+
+```
+
+
+
+```{r, fig.height=2.5, fig.width=4}
+
+# stats for SE vs. RI
+
+freq_SE = multi_introns_counts_AS %>%
+  mutate(category = case_when(grepl("SE_5-6-7-8", SE) ~ "SE",
+                              TRUE ~ "other")) %>% group_by(target, replicate, category) %>% summarise(total_counts = sum(sum_count)) %>%
+  group_by(target, replicate) %>% mutate(freq_SE = total_counts/sum(total_counts)) %>% filter(category == "SE") %>% dplyr::select(-category, -total_counts)
+
+
+multi_introns_counts_AS %>% filter(grepl("RI_9", RI)) %>% 
+  mutate(category = case_when(SE == "no_SE" ~ "RI_only",
+                              grepl("SE_5-6-7-8", SE) ~ "SE_RI")) %>%
+  drop_na() %>%
+  group_by(target, replicate, category) %>% summarise(sum_count2=sum(sum_count)) %>% spread(category, sum_count2) %>%
+  inner_join(freq_SE, by=c("target","replicate")) %>%
+  mutate(binom_pvalue = -log10(binom.test(c(RI_only, SE_RI), alternative="less", p=freq_SE)$p.value)) %>% 
+  mutate(FC = log2(SE_RI/RI_only)) %>% filter(binom_pvalue < 0.05 & FC > 1)
+
+
+
+
+```
+
+
+
+
+
+
+# CRISPR deletions in IFRD2
+
+```{r}
+
+# Import multi_introns_df that were computed on O2
+NT_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode01_NT_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e6_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode02_e5e6_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i6_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode03_e5i6_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode04_e5e7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode05_e5i7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode06_e5i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i6_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode07_e6i6_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e6e7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode08_e6e7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode09_e6i7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode10_e6i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i6e7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode11_i6e7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i6i7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode12_i6i7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i6i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode13_i6i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e7i7_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode14_e7i7_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e7i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode15_e7i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i7i81_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode16_i7i81_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i7i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode17_i7i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i81i82_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode18_i81i82_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+i82i83_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode19_i82i83_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+C1_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode20_C1_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+C4_multi_introns_df = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode21_C4_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+
+
+NT2_multi_introns_df = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode13_NT1_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5_multi_introns_df = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode14_e5_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e6_multi_introns_df = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode15_e6_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e6bis_multi_introns_df = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode16_e5e6_hg38_multi_introns_counts.txt', sep="\t", header=T, stringsAsFactors = F)
+
+
+NT_multi_introns_df$target = "NT"
+e5e6_multi_introns_df$target = "i5Ae6"
+e5e7_multi_introns_df$target = "i5Ae7"
+e5i6_multi_introns_df$target = "i5Ai6"
+e5i7_multi_introns_df$target = "i5Ai7"
+e5i83_multi_introns_df$target = "i5Ai8C"
+e6i6_multi_introns_df$target = "e6i6"
+e6e7_multi_introns_df$target = "e6e7"
+e6i7_multi_introns_df$target = "e6i7"
+e6i83_multi_introns_df$target = "e6i8C"
+i6e7_multi_introns_df$target = "i6e7"
+i6i7_multi_introns_df$target = "i6i7"
+i6i83_multi_introns_df$target = "i6i8C"
+e7i7_multi_introns_df$target = "e7i7"
+e7i83_multi_introns_df$target = "e7i8C"
+i7i81_multi_introns_df$target = "i7i8A"
+i7i83_multi_introns_df$target = "i7i8C"
+i81i82_multi_introns_df$target = "i8Ai8B"
+i82i83_multi_introns_df$target = "i8Bi8C"
+C1_multi_introns_df$target = "NTclone"
+C4_multi_introns_df$target = "i4i8C"
+NT2_multi_introns_df$target = "NT2"
+e5_multi_introns_df$target = "i5A"
+e6_multi_introns_df$target = "e6"
+e5e6bis_multi_introns_df$target = "i5Ae6bis"
+
+
+# Concatenate all samples
+multi_introns_df = rbind(NT_multi_introns_df,e5e6_multi_introns_df,e6i6_multi_introns_df,e5i7_multi_introns_df,e6i7_multi_introns_df,e6i83_multi_introns_df,i6e7_multi_introns_df,i6i83_multi_introns_df,e7i7_multi_introns_df,i7i81_multi_introns_df,e7i83_multi_introns_df,i81i82_multi_introns_df,i82i83_multi_introns_df, e5e7_multi_introns_df,e5i6_multi_introns_df, i7i83_multi_introns_df, e5i83_multi_introns_df, i6i7_multi_introns_df, e6e7_multi_introns_df, C1_multi_introns_df,C4_multi_introns_df, NT2_multi_introns_df,e5_multi_introns_df, e6_multi_introns_df, e5e6bis_multi_introns_df)
+
+multi_introns_df <- multi_introns_df %>%
+  separate(gene, c("gene_id", "number"), sep="\\.", remove=F) %>%
+  left_join(gene_names_df, by="gene_id") %>% filter(gene_name == "IFRD2"  & intron_numbers == "7_6_5_4_3_2")
+
+
+
+#####################
+
+
+
+
+
+
+```
+
+```{r}
+
+# Identify AS events
+
+multi_introns_counts <- multi_introns_df %>% 
+  mutate(intron_numbers = replace(intron_numbers, intron_numbers == "7_6_5_4_3_2", "4_5_6_7_8_9")) %>%
+  rowwise() %>%
+  mutate(AS = define_AS(intron_numbers, splice_status), SE = define_SE(intron_numbers, splice_status), RI = define_RI(intron_numbers, splice_status))
+
+multi_introns_counts_AS <- multi_introns_counts %>%
+  group_by(target, SE) %>% summarise(sum_count=sum(count)) %>% group_by(target) %>% mutate(norm_counts=sum_count/(sum(sum_count)/100))
+
+multi_introns_counts_AS$target <- factor(multi_introns_counts_AS$target, levels=c("NT","NT2","NTclone", "i4i8C","i5A", "i5Ae6","i5Ae6bis", "i5Ai6", "i5Ae7","i5Ai7","i5Ai8C","e6","e6i6","e6e7","e6i7",                                                                              "e6i8C","i6e7","i6i7","i6i8C","e7i7","e7i8C","i7i8A","i7i8C","i8Ai8B","i8Bi8C"))
+
+
+
+```
+
+
+```{r}
+
+multi_introns_counts_AS %>% 
+  mutate(SE = replace(SE, grepl("SKP", SE), "undetermined")) %>%
+  filter(SE != "no_SE" & norm_counts > 0.5) %>%
+  ggplot(aes(x=target, y=norm_counts, fill=SE)) + geom_bar(stat="identity", position="stack") + theme_bw() +
+  scale_fill_manual(values=cbPalette_long) +
+  coord_flip()
+  
+
+ggsave("/path/to/plots/FigS9_CRISPR_deletions_AS.pdf", height=5, width = 4, units = "in")
+
+```
+
+
+```{r}
+
+# Intron 4 retention
+
+multi_introns_counts_AS_bis <- multi_introns_counts %>%
+  group_by(target, AS, RI, SE) %>% summarise(sum_count=sum(count)) %>% group_by(target) %>% mutate(norm_counts=(sum_count/(sum(sum_count))*100))
+
+multi_introns_counts_AS_bis$target <- factor(multi_introns_counts_AS_bis$target, levels=c("NT","NT2","NTclone", "i4i8C","i5A", "i5Ae6","i5Ae6bis", "i5Ai6", "i5Ae7","i5Ai7","i5Ai8C","e6","e6i6","e6e7","e6i7",                                                                              "e6i8C","i6e7","i6i7","i6i8C","e7i7","e7i8C","i7i8A","i7i8C","i8Ai8B","i8Bi8C"))
+
+multi_introns_counts_AS_bis %>% 
+  filter(grepl("RI_4", RI)) %>% 
+  group_by(target) %>% summarise(sum_norm_count = sum(norm_counts)) %>%
+  ggplot(aes(x=target, y=sum_norm_count)) + geom_bar(stat="identity", position="stack") + theme_bw() +
+  scale_fill_manual(values=cbPalette_long) + ylab("percent of reads") + ggtitle("intron 4 retention") + #ylim(0,25) +
+  coord_flip()
+
+
+ggsave("/path/to/plots/Figure6_CRISPR_deletions_int4_retention_simple_barplot.pdf", height=5, width = 4, units = "in")
+
+```
+
+
+```{r}
+
+# Intron 9 retention
+
+multi_introns_counts_AS_bis %>% 
+  filter(grepl("9", RI)) %>% 
+  group_by(target) %>% summarise(sum_norm_count = sum(norm_counts)) %>%
+  ggplot(aes(x=target, y=sum_norm_count)) + geom_bar(stat="identity", position="stack") + theme_bw() +
+  scale_fill_manual(values=cbPalette_long) + ylab("percent of reads") + ggtitle("intron 9 retention") + #ylim(0,25) +
+  coord_flip()
+
+
+ggsave("/path/to/plots/Figure6_CRISPR_deletions_int9_retention_simple_barplot.pdf", height=5, width = 4, units = "in")
+
+```
+
+
+```{r}
+
+# stats
+
+freq_NT_df <- multi_introns_counts_AS_bis %>% filter(grepl("NT", target)) %>%
+  mutate(category = case_when(grepl("9", RI) ~ "RI_9",
+                              TRUE ~ "other")) %>%
+  group_by(target, category) %>% summarise(total_count = sum(sum_count)) %>% 
+  spread(category, total_count) %>% mutate(freq = RI_9 / (other + RI_9))
+
+freq_NT <- mean(freq_NT_df$freq)
+  
+
+multi_introns_counts_AS_bis %>% 
+  mutate(category = case_when(grepl("9", RI) ~ "RI_9",
+                              TRUE ~ "other")) %>%
+  group_by(target, category) %>% summarise(total_count = sum(sum_count)) %>% 
+  spread(category, total_count) %>%
+  mutate(fisher_pvalue = binom.test(c(RI_9, other), p=freq_NT, alternative="greater")[[3]],
+         FC = log2((RI_9 / (RI_9 + other))/freq_NT)) %>% filter(fisher_pvalue < 0.05 & FC >= 1)
+
+
+```
+
+
+```{r}
+
+# stats
+
+freq_NT_df <- multi_introns_counts_AS_bis %>% filter(grepl("NT", target)) %>%
+  mutate(category = case_when(grepl("4", RI) ~ "RI_4",
+                              TRUE ~ "other")) %>%
+  group_by(target, category) %>% summarise(total_count = sum(sum_count)) %>% 
+  spread(category, total_count) %>% mutate(freq = RI_4 / (other + RI_4))
+
+freq_NT <- mean(freq_NT_df$freq)
+  
+
+multi_introns_counts_AS_bis %>% 
+  mutate(category = case_when(grepl("4", RI) ~ "RI_4",
+                              TRUE ~ "other")) %>%
+  group_by(target, category) %>% summarise(total_count = sum(sum_count)) %>% 
+  spread(category, total_count) %>%
+  mutate(fisher_pvalue = binom.test(c(RI_4, other), p=freq_NT, alternative="greater")[[3]],
+         FC = log2((RI_4 / (RI_4 + other))/freq_NT)) %>% filter(fisher_pvalue < 0.05 & FC >= 1)
+
+
+```
+
+
+
+
+```{r}
+
+## Editing efficiency (detecting deletions)
+
+# Import del_info files that were computed on O2
+
+NT_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode01_NT_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e6_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode02_e5e6_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i6_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode03_e5i6_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode04_e5e7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode05_e5i7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode06_e5i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i6_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode07_e6i6_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e6e7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode08_e6e7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode09_e6i7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e6i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode10_e6i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i6e7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode11_i6e7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i6i7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode12_i6i7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i6i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode13_i6i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e7i7_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode14_e7i7_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e7i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode15_e7i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i7i81_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode16_i7i81_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i7i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode17_i7i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i81i82_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode18_i81i82_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+i82i83_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode19_i82i83_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+C1_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode20_C1_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+C4_del_info = read.table('/path/to/HeLa_CRISPR_IFRD2_barcode21_C4_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+NT2_del_info = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode13_NT1_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e6bis_del_info = read.table('/path/to//path/to/HeLa_CRISPR_IFRD2_barcode16_e5e6_hg38_splicing_info.deletions.txt', sep="\t", header=T, stringsAsFactors = F)
+e5e6bis_del_info <- e5e6bis_del_info %>% mutate(gene_name = replace(gene_name, gene_name == "e5e6", "e5e6bis"))
+
+NT_del_info$target = "NT"
+e5e6_del_info$target = "e5e6"
+e5e7_del_info$target = "e5e7"
+e5i6_del_info$target = "e5i6"
+e5i7_del_info$target = "e5i7"
+e5i83_del_info$target = "e5i83"
+e6i6_del_info$target = "e6i6"
+e6e7_del_info$target = "e6e7"
+e6i7_del_info$target = "e6i7"
+e6i83_del_info$target = "e6i83"
+i6e7_del_info$target = "i6e7"
+i6i7_del_info$target = "i6i7"
+i6i83_del_info$target = "i6i83"
+e7i7_del_info$target = "e7i7"
+e7i83_del_info$target = "e7i83"
+i7i81_del_info$target = "i7i81"
+i7i83_del_info$target = "i7i83"
+i81i82_del_info$target = "i81i82"
+i82i83_del_info$target = "i82i83"
+C1_del_info$target = "NT_clone"
+C4_del_info$target = "i4i83"
+NT2_del_info$target = "NT2"
+e5e6bis_del_info$target = "e5e6bis"
+
+# Combine all samples
+del_info = rbind(NT_del_info,e5e6_del_info,e6i6_del_info,e5i7_del_info,e6i7_del_info,e6i83_del_info,
+                                 i6e7_del_info,i6i83_del_info,e7i7_del_info,i7i81_del_info,e7i83_del_info,
+                                 i81i82_del_info,i82i83_del_info, e5e7_del_info,
+                         e5i6_del_info, i7i83_del_info, e5i83_del_info, i6i7_del_info, e6e7_del_info, C1_del_info,
+                         C4_del_info,NT2_del_info,e5e6bis_del_info)
+
+
+del_info$target <- factor(del_info$target, levels=c("NT","NT2","NT_clone", "i4i83","e5e6","e5e6bis", "e5i6", "e5e7","e5i7","e5i83","e6i6","e6e7","e6i7",                                                                             "e6i83","i6e7","i6i7","i6i83","e7i7","e7i83","i7i81","i7i83","i81i82","i82i83"))
+
+
+#####################
+
+
+
+
+
+
+```
+
+
+```{r}
+
+# Plot % of reads with deletion
+
+del_reads <- del_info %>% filter(!grepl("intron", gene_name) & splice_status == "YES") %>% dplyr::select(read_name, gene_name, target) %>% distinct() %>%
+  group_by(target, gene_name) %>% summarise(n_reads = n())
+
+total_reads <- del_info %>% dplyr::select(read_name, target) %>% distinct() %>% group_by(target) %>% summarise(total_reads = n())
+
+# Replace absent samples with very low counts so that they are shown on the plot
+absent_samples <- data.frame(c("NT","NT2","NT_clone","e5","e6"), c(0.0001,0.0001,0.0001,0.0001,0.0001))
+colnames(absent_samples) <- c("target", "percent_del")
+
+
+del_df <- inner_join(del_reads, total_reads, by="target") %>% mutate(percent_del = n_reads / total_reads) %>% filter(target == gene_name) %>%
+  dplyr::select(target, percent_del) %>% rbind(absent_samples)
+
+del_df$target <- factor(del_df$target, levels=c("NT","NT2","NT_clone", "i4i83","e5", "e5e6","e5e6bis", "e5i6", "e5e7","e5i7","e5i83","e6", "e6i6","e6e7","e6i7",                                                                             "e6i83","i6e7","i6i7","i6i83","e7i7","e7i83","i7i81","i7i83","i81i82","i82i83"))
+
+del_df %>%
+  ggplot(aes(x=target, y=percent_del)) + geom_bar(stat="identity", position="stack") + theme_bw() +
+  ylab("percent of reads") + ggtitle("deletions") + 
+  coord_flip()
+
+
+ggsave("/path/to/plots/FigS9_CRISPR_percent_deletion.pdf", height=5, width = 3, units = "in")
+
+
+```
+
+
+
+
+# DMS-seq results
+
+```{r}
+
+# Get outputs with DMS reactivities for each sample
+WT1_B = read.table("/path/to/IFRD2-WT1_IFRD2_WT_1_778_78_vienna.txt", sep="\t", header=F)
+WT2_B = read.table("/path/to/IFRD2-WT2_IFRD2_WT_1_778_78_vienna.txt", sep="\t", header=F)
+SE1_B = read.table("/path/to/IFRD2_SE1_IFRD2_SE_1_721_72_vienna.txt", sep="\t", header=F)
+SE2_B = read.table("/path/to/IFRD2_SE2_IFRD2_SE_1_721_72_vienna.txt", sep="\t", header=F)
+del1_B = read.table("/path/to/IFRD2_del1_IFRD2_del_1_523_52_vienna.txt", sep="\t", header=F)
+del2_B = read.table("/path/to/IFRD2_del2_IFRD2_del_1_523_52_vienna.txt", sep="\t", header=F)
+
+WT1_B$sample_name = 'WT1'
+WT2_B$sample_name = 'WT2'
+SE1_B$sample_name = 'SE1'
+SE2_B$sample_name = 'SE2'
+del1_B$sample_name = 'del1'
+del2_B$sample_name = 'del2'
+
+
+# merge replicates
+WT_B <- inner_join(WT1_B, WT2_B, by="V1")
+SE_B <- inner_join(SE1_B, SE2_B, by="V1")
+del_B <- inner_join(del1_B, del2_B, by="V1")
+
+
+```
+
+```{r}
+
+# Re-center the data on the 5'SS of intron 9, based on how much of the upstream gene has been deleted
+
+start_int9_WT = 562
+start_int9_SE = 505
+start_int9_del = 307
+
+
+WT_B$rel_pos = WT_B$V1 - start_int9_WT
+SE_B$rel_pos = SE_B$V1 - start_int9_SE
+del_B$rel_pos = del_B$V1 - start_int9_del
+
+WT_B_rel = WT_B %>% dplyr::select(V1, V2.x, V2.y, rel_pos)
+SE_B_rel = SE_B %>% dplyr::select(V1, V2.x, V2.y, rel_pos)
+del_B_rel = del_B %>% dplyr::select(V1, V2.x, V2.y, rel_pos)
+
+colnames(WT_B_rel) = c('WT_pos','WT_rep1','WT_rep2','rel_pos')
+colnames(SE_B_rel) = c('SE_pos','SE_rep1','SE_rep2','rel_pos')
+colnames(del_B_rel) = c('del_pos','del_rep1','del_rep2','rel_pos')
+
+rel_df_bis = inner_join(WT_B_rel, SE_B_rel, by="rel_pos") %>% inner_join(del_B_rel, by="rel_pos") %>%
+  dplyr::select(-WT_pos, -SE_pos, -del_pos) %>%
+  gather(sample_name, mutation_rate, c('WT_rep1','WT_rep2','SE_rep1','SE_rep2','del_rep1','del_rep2')) %>%
+  mutate(mutation_rate = replace(mutation_rate, mutation_rate == -999, 0))
+
+
+rel_df_bis$sample_name <- factor(rel_df_bis$sample_name, levels=c('WT_rep1','WT_rep2','SE_rep1','SE_rep2','del_rep1','del_rep2'))
+
+
+```
+
+
+
+```{r, fig.height=3, fig.width=10}
+
+# Plot reactivities for intron 9 +/- 10 nt
+
+rel_df_bis2 <- rel_df_bis %>% filter(rel_pos > -11 & rel_pos < 99) %>%
+  separate(sample_name, c("construct","rep", sep="_"))
+
+rel_df_bis_grp <- rel_df_bis2 %>%
+  group_by(rel_pos, construct) %>%
+  summarise(avg_freq = mean(mutation_rate), sd_freq = sd(mutation_rate)) %>%
+  mutate(sd_lower = avg_freq - sd_freq) %>%
+  mutate(sd_upper = avg_freq + sd_freq)
+
+rel_df_bis_grp$construct <- factor(rel_df_bis_grp$construct, c("WT", "SE", "del"))
+rel_df_bis2$construct <- factor(rel_df_bis2$construct, c("WT", "SE", "del"))
+
+rel_df_bis_grp %>%
+  ggplot(aes(x=factor(rel_pos), y=avg_freq, fill=construct)) + geom_bar(stat="identity", position="dodge") + theme_bw() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_manual(values=c("#999999",cbPalette_long[1],cbPalette_long[4])) +
+  geom_point(data=rel_df_bis2, aes(x=factor(rel_pos), y=mutation_rate, group=construct), position = position_dodge(width=1), size=0.2) +
+  #geom_errorbar(aes(x=factor(rel_pos), ymin=sd_lower, ymax=sd_upper), position = position_dodge2(width = 0.5, padding = 0.5)) +
+  xlab("position relative to 5'SS of intron 9") + ylab("DMS reactivity")
+
+
+ggsave("/path/to/plots/FigS10_DMS_mutation_rate_intron9_barplot.pdf",
+       width = 12,
+    height = 2.5,
+    units = c("in"))
+
+
+
+
+```
+
+```{r, fig.height=3, fig.width=10}
+
+# zoom in for main figure
+
+rel_df_bis2 <- rel_df_bis %>% filter(rel_pos > 30 & rel_pos < 80) %>%
+  separate(sample_name, c("construct","rep", sep="_"))
+
+rel_df_bis_grp <- rel_df_bis2 %>%
+  group_by(rel_pos, construct) %>%
+  summarise(avg_freq = mean(mutation_rate), sd_freq = sd(mutation_rate)) %>%
+  mutate(sd_lower = avg_freq - sd_freq) %>%
+  mutate(sd_upper = avg_freq + sd_freq)
+
+rel_df_bis_grp$construct <- factor(rel_df_bis_grp$construct, c("WT", "SE", "del"))
+rel_df_bis2$construct <- factor(rel_df_bis2$construct, c("WT", "SE", "del"))
+
+rel_df_bis_grp %>%
+  ggplot(aes(x=factor(rel_pos), y=avg_freq, fill=construct)) + geom_bar(stat="identity", position="dodge") + theme_bw() +
+  #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_manual(values=c("#999999",cbPalette_long[1],cbPalette_long[4])) +
+  geom_point(data=rel_df_bis2, aes(x=factor(rel_pos), y=mutation_rate, group=construct), position = position_dodge(width=1), size=1) +
+  #geom_errorbar(aes(x=factor(rel_pos), ymin=sd_lower, ymax=sd_upper), position = position_dodge2(width = 0.5, padding = 0.5)) +
+  xlab("position relative to 5'SS of intron 9") + ylab("DMS reactivity")
+
+
+ggsave("/path/to/plots/Fig6_DMS_mutation_rate_intron9_barplot_smaller_region.pdf",
+       width = 12,
+    height = 2.5,
+    units = c("in"))
+
+
+
+```
+
+
+
+
+```{r}
+
+# Plot heatmap of mutant fold change over WT (intron 9 +/- 10 nt)
+
+rel_df_WT <- rel_df_bis %>% filter(rel_pos >-11 & rel_pos < 99) %>% filter(grepl("WT",sample_name)) %>%
+  separate(sample_name, c("construct","rep"), sep="_")
+
+rel_df_bis %>% filter(rel_pos >-11 & rel_pos < 99) %>% filter(!grepl("WT",sample_name)) %>%
+  separate(sample_name, c("construct","rep"), sep="_") %>% inner_join(rel_df_WT, by=c("rel_pos","rep")) %>%
+  mutate(FC = log2(mutation_rate.x / mutation_rate.y)) %>% unite("sample_name", c(construct.x,rep), sep="_") %>%
+  ggplot(aes(x=rel_pos, y=sample_name, fill=FC)) + geom_tile() + theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + scale_fill_viridis(option = "cividis")
+
+
+ggsave("/path/to/plots/FigS10_DMS_mutation_rate_intron9_matrix.pdf",
+       width = 12,
+    height = 1.5,
+    units = c("in"))
+
+
+```
+
+
+```{r}
+
+# Plot heatmap of mutant fold change over WT (zoom in for main figure)
+
+rel_df_WT <- rel_df_bis %>% filter(rel_pos > 30 & rel_pos < 80) %>% filter(grepl("WT",sample_name)) %>%
+  separate(sample_name, c("construct","rep"), sep="_")
+
+rel_df_bis %>% filter(rel_pos >30 & rel_pos < 80) %>% filter(!grepl("WT",sample_name)) %>%
+  separate(sample_name, c("construct","rep"), sep="_") %>% inner_join(rel_df_WT, by=c("rel_pos","rep")) %>%
+  mutate(FC = log2(mutation_rate.x / mutation_rate.y)) %>% unite("sample_name", c(construct.x,rep), sep="_") %>%
+  ggplot(aes(x=rel_pos, y=sample_name, fill=FC)) + geom_tile() + theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + scale_fill_viridis(option = "cividis")
+
+
+ggsave("/path/to/plots/Fig6_DMS_mutation_rate_intron9_matrix.pdf",
+       width = 12,
+    height = 1.5,
+    units = c("in"))
+
+
+```
+
+
+
+```{r}
+
+# Stats
+
+rel_df_mat <- inner_join(WT_B_rel, SE_B_rel, by="rel_pos") %>% inner_join(del_B_rel, by="rel_pos") %>%
+  dplyr::select(-WT_pos, -SE_pos, -del_pos) %>% filter(rel_pos > -11 & rel_pos < 99 & WT_rep1 != -999 & 
+                                                         (WT_rep1 != SE_rep1 | WT_rep1 != del_rep1 | WT_rep1 != SE_rep2 | WT_rep2 != del_rep2)) %>% 
+  rowwise() %>%
+  mutate(pvalue_WT_vs_SE = t.test(c(WT_rep1,WT_rep2),c(SE_rep1,SE_rep2))[[3]],
+         FC_WT_vs_SE = log2(mean(SE_rep1,SE_rep2)/mean(WT_rep1,WT_rep2)),
+         pvalue_WT_vs_del = t.test(c(WT_rep1,WT_rep2),c(del_rep1,del_rep2))[[3]],
+         FC_WT_vs_del = log2(mean(del_rep1,del_rep2)/mean(WT_rep1,WT_rep2))) %>% 
+  filter((pvalue_WT_vs_SE < 0.05 & abs(round(FC_WT_vs_SE, 1)) >= 1) | (pvalue_WT_vs_del < 0.05 & abs(round(FC_WT_vs_del, 1)) >= 1))
+  
+  
+rel_df_mat
+
+```
+
+
+
