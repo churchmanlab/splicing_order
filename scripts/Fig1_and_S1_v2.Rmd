@@ -257,6 +257,7 @@ all_introns_quantif <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_
   dplyr::select(read_name, sample_name, chrom, intron_start, intron_end, strand, intron_order) %>% distinct() %>%
   filter(intron_order != "single") %>%
   group_by(sample_name, read_name, intron_order) %>% summarise(n=n()) %>% mutate(flag = "TRUE") %>%
+  dplyr::select(-n) %>%
   spread(intron_order, flag)
 
 all_introns_quantif[is.na(all_introns_quantif)] <- "FALSE"
@@ -271,6 +272,7 @@ post_txn_quantif <- chr_splice_info %>% inner_join(splice_df_chr, by=c("read_nam
   dplyr::select(sample_name, read_name, chrom, intron_start, intron_end, strand, intron_order) %>% distinct() %>%
   filter(intron_order != "single") %>%
   group_by(sample_name, read_name, intron_order) %>% summarise(n=n()) %>% mutate(flag = "TRUE") %>%
+  dplyr::select(-n) %>%
   spread(intron_order, flag)
 
 post_txn_quantif[is.na(post_txn_quantif)] <- "FALSE"
@@ -463,6 +465,8 @@ intron_read_counts_bis <- chr_splice_info %>% inner_join(splice_df_chr, by=c("re
 
 
 ```{r}
+
+total_gene_counts <- splice_df_chr %>% group_by(gene) %>% summarise(total_reads = n())
 
 post_txn_genes_by_intron <- intron_read_counts_bis %>% filter(fraction_NO >= 0.1) %>% group_by(gene_name) %>% summarise(n = n())
 

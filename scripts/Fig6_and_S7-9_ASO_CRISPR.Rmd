@@ -823,7 +823,25 @@ ggsave("/path/to/plots/FigS9_CRISPR_percent_deletion.pdf", height=5, width = 3, 
 
 ```
 
+# Single guide CRISPR efficiency
 
+```{r}
+
+tide_ex5 <- data.frame(c(-7,-6,1,5,8), c(17,3.6,8.2,3.3,3.9)) # values copied from TIDE output (PDF)
+colnames(tide_ex5) <- c("position","percent_seq")
+tide_ex5$sgRNA <- "ex5"
+
+tide_ex6 <- data.frame(c(1), c(11.9))
+colnames(tide_ex6) <- c("position","percent_seq")
+tide_ex6$sgRNA <- "ex6"
+
+
+rbind(tide_ex5, tide_ex6) %>%
+  ggplot(aes(x=position, y=percent_seq)) + geom_bar(stat="identity") + theme_bw() + facet_wrap(~sgRNA)
+
+ggsave("/path/to/plots/FigureS9_CRISPR_tide_efficiency.pdf", height=5, width = 3, units = "in")
+
+```
 
 
 # DMS-seq results
