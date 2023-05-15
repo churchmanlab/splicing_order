@@ -298,6 +298,7 @@ SE_sig <- SE_df %>% filter(FDR < 0.05 & abs(IncLevelDifference) > 0.1) %>%
                            separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
                            filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
                                     ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+    filter((IJC_gr1_s1 + SJC_gr1_s1 >= t & IJC_gr1_s2 + SJC_gr1_s2 >= t & IJC_gr2_s1 + SJC_gr2_s1 >= t & IJC_gr2_s2 + SJC_gr2_s2 >= t)) %>% 
                          dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, upstreamES, upstreamEE, downstreamES, downstreamEE, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>%
                        arrange(comparison, FDR) %>% distinct()
 
@@ -330,6 +331,7 @@ MXE_sig <- MXE_df %>% filter(FDR < 0.05 & abs(IncLevelDifference) > 0.1) %>%
                            separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
                            filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
                                     ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+    filter((IJC_gr1_s1 + SJC_gr1_s1 >= t & IJC_gr1_s2 + SJC_gr1_s2 >= t & IJC_gr2_s1 + SJC_gr2_s1 >= t & IJC_gr2_s2 + SJC_gr2_s2 >= t)) %>% 
                          dplyr::select(GeneID, geneSymbol, chr, strand, X1stExonStart_0base, X1stExonEnd,X2ndExonStart_0base,X2ndExonEnd, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>%
                        arrange(comparison, FDR) %>% distinct()
 
@@ -371,6 +373,7 @@ SE_df_all <- rbind(SE_df,D0_D4_SE) %>%
                            separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2"), sep=",", convert=TRUE) %>%
                            filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t)) & 
                                     ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t))) %>%
+    filter((IJC_gr1_s1 + SJC_gr1_s1 >= t & IJC_gr1_s2 + SJC_gr1_s2 >= t & IJC_gr2_s1 + SJC_gr2_s1 >= t & IJC_gr2_s2 + SJC_gr2_s2 >= t)) %>% 
                          dplyr::select(GeneID, geneSymbol, chr, strand, exonStart_0base, exonEnd, PValue, FDR, IncLevel1, IncLevel2, IncLevelDifference, comparison) %>% distinct() %>% gather(id, IncLevel, c("IncLevel1","IncLevel2")) %>% separate(IncLevel, c("rep1","rep2"), sep=",", convert=TRUE) %>%
   separate(comparison, c("timepoint1","vs","timepoint2"), sep="_") %>%
   mutate(sample_name = case_when(id == "IncLevel1" ~ timepoint1,
@@ -906,12 +909,12 @@ colnames(SI_hg38) <- c("gene","event_name","chrom","start","end","strand","X5SS_
 SI_hg38$sample_name <- factor(SI_hg38$sample_name, levels=sampleNames)
 
 # Use coordinates computed above
-SE_sig_coord_bed$event_type <- factor(SE_sig_coord_bed$event_type, levels=c("upstream_intron","short_intron1","short_intron2","long_intron","downstream_intron"))
+SE_sig_coord_sub_bed$event_type <- factor(SE_sig_coord_sub_bed$event_type, levels=c("upstream_intron","short_intron1","short_intron2","long_intron","downstream_intron"))
 
 # Merge splicing index with intron group coordinates
-SI_hg38 %>% inner_join(SE_sig_coord_bed, by=c("chrom","start","end","strand")) %>% 
+SI_hg38 %>% inner_join(SE_sig_coord_sub_bed, by=c("chrom","start","end","strand")) %>% 
   filter(event_name.y %in% SE_diff_introns_only$event_name) %>%
-  dplyr::select(-event_name.x, -event_name.y, -gene) %>% distinct() %>%
+  dplyr::select(-event_name.x, -event_name.y) %>% distinct() %>%
   mutate(total_counts = splice_count + X5SS_count + X3SS_count) %>% filter(total_counts >= 20) %>%
   mutate(SI = 2*splice_count / (X5SS_count + X3SS_count + 1)) %>%
   mutate(RNA = case_when(grepl("polyA",sample_name) ~ "polyA+",
@@ -933,9 +936,9 @@ ggsave("/path/to/plots/FigS6_SE_intron_groups_all_splicing_index.pdf",
 
 # Repeat, but only for intron groups that had sufficient coverage to be analyzed by direct RNA seq
 
-SI_hg38 %>% inner_join(SE_sig_coord_bed, by=c("chrom","start","end","strand")) %>% 
+SI_hg38 %>% inner_join(SE_sig_coord_sub_bed, by=c("chrom","start","end","strand")) %>% 
   filter(event_name.y %in% MN_paths$event_name) %>%
-  dplyr::select(-event_name.x, -event_name.y, -gene) %>% distinct() %>%
+  dplyr::select(-event_name.x, -event_name.y) %>% distinct() %>%
   mutate(total_counts = splice_count + X5SS_count + X3SS_count) %>% filter(total_counts >= 20) %>%
   mutate(SI = 2*splice_count / (X5SS_count + X3SS_count + 1)) %>%
   mutate(RNA = case_when(grepl("polyA",sample_name) ~ "polyA+",
