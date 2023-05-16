@@ -745,6 +745,63 @@ ggsave("/path/to/plots/FigS7_HeLa_splicing_order_vs_U2_status_Evenness_coverage_
 
 ```{r}
 
+# Make list of genes for co-occurrence analysis
+
+# Read output from rmats-stat that was used to output p-values for statistical difference between intron/exon junction reads (RI)
+U2_RI <- read.table("/path/to/rMATS_stat_RI_Result_FDR_U2_vs_ctrl.txt", sep="\t", header=T)
+
+intron_df_gene_names = intron_df %>% dplyr::select(coord, gene_name) %>% distinct()
+
+U2_RI_bis <- U2_RI %>% separate(ID, c("NM","id", "chrom","start","end","strand"), sep="_", extra="drop") %>% 
+  unite(coord, c("chrom","start","end","strand"), sep="_", remove=F) %>%
+  inner_join(intron_df_gene_names, by="coord") %>% mutate(start = as.numeric(start), end = as.numeric(end)) %>%
+  inner_join(SI_df_ctrl_U2, by=c("gene_name", "chrom"="chr", "start", "end", "strand"))
+
+ctrl_U2_RI_sig <- filter(U2_RI_bis, FDR < 0.05 & log2FC < -1) %>% dplyr::select(-NM, -id, -coord) %>% distinct()
+
+
+t=10
+
+SE_sensitive_genes_U2 <- unique(ctrl_U2_SE %>% separate(IJC_SAMPLE_1, c("IJC_gr1_s1", "IJC_gr1_s2", "IJC_gr1_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_1, c("SJC_gr1_s1", "SJC_gr1_s2", "SJC_gr1_s3"), sep=",", convert=TRUE) %>%
+                           separate(IJC_SAMPLE_2, c("IJC_gr2_s1", "IJC_gr2_s2", "IJC_gr2_s3"), sep=",", convert=TRUE) %>% 
+                           separate(SJC_SAMPLE_2, c("SJC_gr2_s1", "SJC_gr2_s2", "SJC_gr2_s3"), sep=",", convert=TRUE) %>%
+                           filter(((IJC_gr1_s1 >= t & IJC_gr1_s2 >= t & IJC_gr1_s3 >= t) | (IJC_gr2_s1 >= t & IJC_gr2_s2 >= t & IJC_gr2_s3 >= t)) & 
+                                    ((SJC_gr1_s1 >= t & SJC_gr1_s2 >= t & SJC_gr1_s3 >= t) | (SJC_gr2_s1 >= t & SJC_gr2_s2 >= t & SJC_gr2_s3 >= t))) %>% filter(FDR < 0.05 & IncLevelDifference > 0.01) %>%
+                                        dplyr::select(geneSymbol))
+
+```
+
+
+
+
+```{r}
+
+# Get genes counts from PromethION direct RNA-seq data (calculated on cluster)
+Pr_U2_cov = read.table("/path/to/Pr_HeLa_U2_aso_polyA_RNA_hg38_spliced_percent_per_intron.txt", sep="\t", header=T)
+colnames(Pr_U2_cov) <- c("chr", "start", "end", "strand", "total_counts", "spliced_counts", "percent")
+Pr_ctrl_cov = read.table("/path/to/Pr_ctrl_HeLa_ctrl_aso_polyA_RNA_hg38_spliced_percent_per_intron.txt", sep="\t", header=T)
+colnames(Pr_ctrl_cov) <- c("chr", "start", "end", "strand", "total_counts", "spliced_counts", "percent")
+
+fields <- c("chr","start","end","strand","total_counts")
+Prometh_cov = Pr_U2_cov[,fields] %>% inner_join(Pr_ctrl_cov[,fields], by=c("chr","start","end","strand"))
+
+# Merge with introns of interest and filter for coverage and for intron length
+# by requiring 100 reads, this means that we would be able to detect 10% intron retention (10 reads)
+SI_df_ctrl_U2_cov <- ctrl_U2_RI_sig %>% inner_join(Prometh_cov, by=c("chrom"="chr","start","end","strand")) %>%
+  inner_join(unique(intron_df[,c("chrom", "start","end","strand", "gene", "intron_length")]), by=c("chrom", "start","end","strand")) %>%
+  filter(total_counts.x > 100 & total_counts.y > 100 & intron_length <= 1000 & gene_name %in% SE_sensitive_genes_U2$geneSymbol)
+
+RI_SE_ctrl_U2_filtered_genes <- unique(SI_df_ctrl_U2_cov$gene)
+
+write.table(RI_SE_ctrl_U2_filtered_genes, "/path/to/genes_with_SE_FDR_005_ILD_001_to_1_and_RI_FDR_005_log2FC_neg1.txt", col.names=F, row.names=F, quote=F) # use this list of genes to compute intron/exon splicing status on cluster
+
+
+```
+
+
+```{r}
+
 # Get results from binomial analysis of SE/RI co-occurrence
 binom_df <- read.table("/path/to/DirectRNA_SE_RI_analysis_revisited.txt", sep="\t", header=T)
 
